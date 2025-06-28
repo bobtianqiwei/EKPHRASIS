@@ -86,6 +86,10 @@
             border-radius: 5px;
             font-size: 14px;
         }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
         .instructions {
             width: 440px;
             text-align: center;
@@ -116,6 +120,33 @@
             line-height: 1.6;
             color: #333;
             font-size: 13px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+            color: #666;
+        }
+        .score-display {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .score-box {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: white;
+        }
+        .score-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .score-value {
+            font-size: 18px;
+            color: #333;
         }
 
     </style>
@@ -153,9 +184,26 @@
             <div class="canvas-container">
                 <canvas id="drawingCanvas" width="375" height="375"></canvas>
             </div>
-            <button class="evaluate-button">Evaluate</button>
-            <div class="feedback">
-                There’s some effort to create less harmonious, but it feels a little awkward. The black square stands out, but the smaller shapes don’t balance it enough.
+            
+            <button class="evaluate-button" id="evaluateBtn">Evaluate with AI</button>
+            
+            <div class="loading" id="loadingDiv">
+                Generating variations and analyzing with AI model...
+            </div>
+            
+            <div class="score-display" id="scoreDisplay" style="display: none;">
+                <div class="score-box">
+                    <div class="score-label">Best Score</div>
+                    <div class="score-value" id="bestScore">-</div>
+                </div>
+                <div class="score-box">
+                    <div class="score-label">Worst Score</div>
+                    <div class="score-value" id="worstScore">-</div>
+                </div>
+            </div>
+            
+            <div class="feedback" id="feedbackDiv" style="display: none;">
+                Analysis will appear here...
             </div>
         </div>
     </div>
@@ -172,7 +220,10 @@ let currentColor = '#D9D9D9'; // Default color
 
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
-const feedback = document.querySelector('.feedback');
+const feedback = document.querySelector('#feedbackDiv');
+const loadingDiv = document.querySelector('#loadingDiv');
+const scoreDisplay = document.querySelector('#scoreDisplay');
+const evaluateBtn = document.querySelector('#evaluateBtn');
 
 // Initially hide the feedback message
 feedback.style.display = 'none';
@@ -199,17 +250,49 @@ function calculateCorners(rect) {
 function createVariation(originalRectangles) {
     return originalRectangles.map(rect => {
         const newRect = { ...rect };
-        // Random position adjustment (x = ±x/2 pixels)
-        newRect.x += (Math.random() - 0.5) * 100;
-        newRect.y += (Math.random() - 0.5) * 100;
+        // Random position adjustment (±25 pixels)
+        newRect.x += (Math.random() - 0.5) * 50;
+        newRect.y += (Math.random() - 0.5) * 50;
         
-        // Random size adjustment (±x%)
+        // Random size adjustment (±20%)
         const sizeChange = 0.8 + Math.random() * 0.4;
         newRect.width *= sizeChange;
         newRect.height *= sizeChange;
         
+        // Keep rectangles within canvas bounds
+        newRect.x = Math.max(0, Math.min(canvas.width - newRect.width, newRect.x));
+        newRect.y = Math.max(0, Math.min(canvas.height - newRect.height, newRect.y));
+        
         return newRect;
     });
+}
+
+// Generate image as base64 string
+function generateImageAsBase64(rectangles) {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = 300;
+    tempCanvas.height = 300;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // Set white background
+    tempCtx.fillStyle = 'white';
+    tempCtx.fillRect(0, 0, 300, 300);
+    
+    // Calculate scale for 300x300 output
+    const scale = 300 / 375;
+    
+    // Draw all rectangles
+    rectangles.forEach(rect => {
+        tempCtx.fillStyle = rect.color;
+        tempCtx.fillRect(
+            rect.x * scale,
+            rect.y * scale,
+            rect.width * scale,
+            rect.height * scale
+        );
+    });
+    
+    return tempCanvas.toDataURL('image/png');
 }
 
 // Generate and save image as PNG
@@ -416,19 +499,104 @@ function clearCanvas() {
     renderRectangles();
 }
 
-// Evaluate button click handler
-document.querySelector('.evaluate-button').addEventListener('click', function() {
-    feedback.style.display = 'block';
-    
-    // Generate two variations
-    const leftVariation = createVariation(rectangles);
-    const rightVariation = createVariation(rectangles);
-    
-    // Save both variations as images to downloads folder
-    generateAndSaveImage(leftVariation, 'left.png', 300);
-    generateAndSaveImage(rightVariation, 'right.png', 300);
-});
+// Evaluate with AI model
+async function evaluateWithAI() {
+    if (rectangles.length === 0) {
+        alert('Please create a composition first before evaluating.');
+        return;
+    }
 
+    // Show loading state
+    loadingDiv.style.display = 'block';
+    feedback.style.display = 'none';
+    scoreDisplay.style.display = 'none';
+    evaluateBtn.disabled = true;
+
+    try {
+        // Generate 10 variations
+        const variations = [];
+        for (let i = 0; i < 10; i++) {
+            variations.push(createVariation(rectangles));
+        }
+
+        // Convert variations to base64 images
+        const images = variations.map(variation => generateImageAsBase64(variation));
+
+        // Send to ML model server
+        const response = await fetch('http://localhost:5000/predict_multiple', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ images: images })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        // Display results
+        document.getElementById('bestScore').textContent = (result.best.confidence * 100).toFixed(1) + '%';
+        document.getElementById('worstScore').textContent = (result.worst.confidence * 100).toFixed(1) + '%';
+        
+        scoreDisplay.style.display = 'flex';
+        
+        // Generate feedback based on scores
+        const bestScore = result.best.confidence;
+        const worstScore = result.worst.confidence;
+        
+        let feedbackText = '';
+        if (bestScore > 0.8) {
+            feedbackText = 'Excellent composition! Your design shows strong visual harmony. The AI model recognizes the balanced arrangement of elements.';
+        } else if (bestScore > 0.6) {
+            feedbackText = 'Good composition with room for improvement. Consider adjusting the balance and spacing of elements for better visual harmony.';
+        } else {
+            feedbackText = 'The composition could be improved. Try experimenting with different arrangements, sizes, and positions of elements to achieve better balance.';
+        }
+        
+        feedback.textContent = feedbackText;
+        feedback.style.display = 'block';
+
+        // Save best and worst variations as images
+        generateAndSaveImage(variations[result.best.index], 'best_variation.png', 300);
+        generateAndSaveImage(variations[result.worst.index], 'worst_variation.png', 300);
+
+    } catch (error) {
+        console.error('Error evaluating with AI:', error);
+        feedback.textContent = 'Error: Could not connect to AI model. Please make sure the server is running.';
+        feedback.style.display = 'block';
+    } finally {
+        // Hide loading state
+        loadingDiv.style.display = 'none';
+        evaluateBtn.disabled = false;
+    }
+}
+
+// Evaluate button click handler
+document.querySelector('#evaluateBtn').addEventListener('click', evaluateWithAI);
+
+// Undo last action
+function undoLastAction() {
+    if (rectangles.length > 0) {
+        rectangles.pop();
+        renderRectangles();
+    }
+}
+
+// Export current canvas
+function exportImage() {
+    if (rectangles.length === 0) {
+        alert('Please create a composition first before exporting.');
+        return;
+    }
+    generateAndSaveImage(rectangles, 'composition.png', 300);
+}
 
     </script>
 </body>
