@@ -5,8 +5,6 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 import os
 import base64
-from PIL import Image
-import io
 import tempfile
 
 app = Flask(__name__)
@@ -35,38 +33,39 @@ model = list(models.values())[0] if models else None
 
 def predict_image_from_base64(base64_string, model_obj):
     """
-    Predict the composition score from a base64 encoded image
+    Predict the composition score from a base64 encoded image.
+    Preprocessing matches the notebook: Keras load_img(target_size=(224,224)) + img_to_array + /255.
     """
     if model_obj is None:
         return {"error": "Model not loaded"}
     
     try:
-        # Decode base64 string to image
-        image_data = base64.b64decode(base64_string.split(',')[1])
-        img = Image.open(io.BytesIO(image_data))
-        
-        # Convert to RGB if necessary
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
-        
-        # Resize to 224x224 (VGG16 input size)
-        img = img.resize((224, 224))
-        
-        # Convert to array and preprocess
-        img_array = image.img_to_array(img)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array /= 255.0
-        
-        # Make prediction
-        prediction = model_obj.predict(img_array)
-        confidence = float(prediction[0][0])
-        
-        return {
-            "confidence": confidence,
-            "class": "class_1" if confidence >= 0.5 else "class_0",
-            "score": confidence if confidence >= 0.5 else 1 - confidence
-        }
-        
+        # Parse data URL (e.g. data:image/png;base64,...)
+        header, b64 = base64_string.split(',', 1)
+        image_data = base64.b64decode(b64)
+        suffix = '.png'
+        if 'jpeg' in header or 'jpg' in header:
+            suffix = '.jpg'
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(image_data)
+            tmp_path = tmp.name
+        try:
+            img = image.load_img(tmp_path, target_size=(224, 224))
+            img_array = image.img_to_array(img)
+            img_array = np.expand_dims(img_array, axis=0)
+            img_array /= 255.0
+            prediction = model_obj.predict(img_array)
+            confidence = float(prediction[0][0])
+            return {
+                "confidence": confidence,
+                "class": "class_1" if confidence >= 0.5 else "class_0",
+                "score": confidence if confidence >= 0.5 else 1 - confidence
+            }
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
     except Exception as e:
         return {"error": str(e)}
 
@@ -153,6 +152,29 @@ def health():
     Health check endpoint
     """
     return jsonify({"status": "healthy", "model_loaded": model is not None})
+
+@app.route('/test_images', methods=['GET'])
+def get_test_images():
+    """Return all images in dataset/test_images as base64 strings."""
+    try:
+        project_root = os.path.dirname(INTERFACE_DIR)
+        test_images_dir = os.path.join(project_root, 'dataset', 'test_images')
+        if not os.path.isdir(test_images_dir):
+            return jsonify({"error": "dataset/test_images directory not found"}), 404
+        
+        images = []
+        # Sort files to ensure stable order
+        for filename in sorted(os.listdir(test_images_dir)):
+            if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+                filepath = os.path.join(test_images_dir, filename)
+                with open(filepath, "rb") as f:
+                    encoded = base64.b64encode(f.read()).decode('utf-8')
+                    ext = filename.split('.')[-1].lower()
+                    mime_type = "image/jpeg" if ext in ['jpg', 'jpeg'] else "image/png"
+                    images.append(f"data:{mime_type};base64,{encoded}")
+        return jsonify({"images": images})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/')
 def index():
