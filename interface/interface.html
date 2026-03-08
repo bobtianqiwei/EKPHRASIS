@@ -6,48 +6,116 @@
     <title>EKPHRASIS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
+        @font-face {
+            font-family: 'Founders Grotesk';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: local('Founders Grotesk'), local('Founders Grotesk Regular'), local('FoundersGrotesk-Regular');
+        }
         body, html {
             height: 100%;
             margin: 0;
+            overflow: hidden;
             font-family: Arial, sans-serif;
             background-color: #f5f5f5;
         }
+        .topbar {
+            position: relative;
+            flex-shrink: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 12px 24px;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+            box-sizing: border-box;
+        }
+        .topbar.bottombar {
+            border-bottom: none;
+            border-top: 1px solid #eee;
+        }
+        .topbar-logo {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            min-width: 0;
+            font-family: 'Founders Grotesk', -apple-system, sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #111;
+        }
+        .topbar-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .topbar-right {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+            min-width: 0;
+        }
+        .topbar-center .criterion-label { margin: 0; font-size: 14px; color: #333; }
+        .topbar-center .criterion-select { margin: 0; min-width: 140px; }
+        .topbar-right .backend-status-btn {
+            margin: 0;
+            background-color: #fff;
+        }
+        .backend-status-btn .status-dot { order: 2; margin-left: 6px; }
+        .backend-status-btn .status-text { order: 1; }
+        .page-wrap {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
         .container {
+            flex: 1;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
-            min-height: 100%;
-            padding: 40px;
+            justify-content: center;
+            padding: 16px 24px;
             box-sizing: border-box;
+            overflow: hidden;
         }
         .content-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* This will center child elements horizontally */
-}
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-height: 100%;
+            overflow: hidden;
+        }
 
-.canvas-container {
-    width: 375px;
-    height: 375px;
-    background-color: white;
-    border: 1px solid #ccc;
-    margin-top: -50px; /* Keep the negative margin if you want it above other elements */
-    /* Remove margin-left and margin-right */
-}
+        .canvas-container {
+            width: 375px;
+            height: 375px;
+            background-color: white;
+            border: 1px solid #ccc;
+            flex-shrink: 0;
+        }
         .upper-section {
             display: flex;
             flex-direction: column;
             align-items: center;
-            transform: scale(0.85);
-            transform-origin: top center;
-            margin-bottom: 40px;
+            flex-shrink: 0;
+            margin-bottom: 16px;
         }
         .prompt {
-            width: 550px;
+            width: 600px;
+            max-width: 90vw;
             text-align: center;
-            margin-bottom: 40px;
-            line-height: 1.6;
+            margin-bottom: 20px;
+            line-height: 1.5;
             color: #333;
             font-size: 16px;
         }
@@ -99,32 +167,35 @@
         .suggestion-grid {
             display: flex;
             gap: 20px;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
-            margin: 20px 0;
+            margin: 12px 0;
+            flex-shrink: 0;
         }
         .suggestion-box {
             flex: 0 0 auto;
             width: 150px;
             text-align: center;
-            background-color: #eee;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 8px;
+            background: transparent;
+            border: none;
+            padding: 0;
         }
         .suggestion-box img {
             display: block;
             width: 150px;
             height: 150px;
             margin: 0 auto;
-            border-radius: 4px;
-            background: #fff;
+            background: transparent;
         }
         .suggestion-box .preview-label {
+            display: none;
             font-size: 12px;
-            font-weight: bold;
+            font-weight: 300;
             margin-top: 6px;
-            color: #333;
+            color: #888;
+        }
+        .suggestion-box.has-result .preview-label {
+            display: block;
         }
         .criterion-row {
             display: flex;
@@ -133,6 +204,67 @@
             gap: 10px;
             margin-bottom: 12px;
         }
+        .backend-status-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #333;
+        }
+        .backend-status-btn .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-left: 6px;
+        }
+        .backend-status-btn .status-dot.connected { background: #28a745; }
+        .backend-status-btn .status-dot.disconnected { background: #ffc107; }
+        .backend-status-btn .status-dot.checking { background: #999; }
+        .status-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0,0,0,0.35);
+            align-items: center;
+            justify-content: center;
+        }
+        .status-modal-overlay.show { display: flex; }
+        .status-modal {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px 24px;
+            max-width: 420px;
+            width: 90%;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+            position: relative;
+        }
+        .status-modal.ok { border-left: 4px solid #28a745; }
+        .status-modal.error { border-left: 4px solid #ffc107; }
+        .status-modal .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+            line-height: 1;
+        }
+        .status-modal .modal-body {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #333;
+            padding-right: 24px;
+        }
+        .status-modal .modal-body code { background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
         .criterion-label {
             font-size: 14px;
             color: #333;
@@ -146,38 +278,12 @@
             min-width: 160px;
         }
         .evaluate-button {
-        display: block;
-        margin: 20px auto;
-        padding: 10px 20px;
-        font-size: 16px;
-        cursor: pointer;
-        }
-        .server-status {
-            width: 520px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            line-height: 1.5;
-            display: none;
-        }
-        .server-status.error {
             display: block;
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            color: #856404;
-        }
-        .server-status.ok {
-            display: block;
-            background: #d4edda;
-            border: 1px solid #28a745;
-            color: #155724;
-        }
-        .server-status code {
-            background: rgba(0,0,0,0.08);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 13px;
+            margin: 12px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            flex-shrink: 0;
         }
         .feedback {
             width: 500px;
@@ -217,12 +323,19 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="page-wrap">
+        <div id="statusModalOverlay" class="status-modal-overlay">
+            <div class="status-modal" id="statusModal">
+                <button type="button" class="modal-close" id="statusModalClose" aria-label="Close">&times;</button>
+                <div class="modal-body" id="statusModalBody"></div>
+            </div>
+        </div>
+        <div class="container">
         <div class="content-wrapper">
             <div class="upper-section">
                 <div class="prompt">
-                    Create a composition with blocks in varying sizes and shades of grey. Arrange them to
-                    achieve <strong>visual harmony</strong>, either spaced apart or overlapping.
+                    Create a composition with blocks in varying sizes and shades of grey.<br>
+                    Arrange them to achieve <strong>visual harmony</strong>, either spaced apart or overlapping.
                 </div>
 
                 <div class="controls">
@@ -260,13 +373,6 @@
                 </div>
             </div>
             
-            <div class="server-status" id="serverStatus"></div>
-            <div class="criterion-row">
-                <label for="criterionSelect" class="criterion-label">Practice vocabulary:</label>
-                <select id="criterionSelect" class="criterion-select">
-                    <option value="visual_harmony">Visual Harmony</option>
-                </select>
-            </div>
             <button class="evaluate-button" id="evaluateBtn">Generate visual aids</button>
             
             <div class="loading" id="loadingDiv">
@@ -288,6 +394,22 @@
                 Analysis will appear here...
             </div>
         </div>
+        </div>
+        <header class="topbar bottombar">
+            <div class="topbar-logo">EKPHRASIS</div>
+            <div class="topbar-center">
+                <label for="criterionSelect" class="criterion-label">Practice vocabulary:</label>
+                <select id="criterionSelect" class="criterion-select">
+                    <option value="visual_harmony">Visual Harmony</option>
+                </select>
+            </div>
+            <div class="topbar-right">
+                <button type="button" class="backend-status-btn" id="serverStatusBtn" title="Click for details">
+                    <span id="serverStatusText" class="status-text">Checking...</span>
+                    <span class="status-dot checking" id="serverStatusDot"></span>
+                </button>
+            </div>
+        </header>
     </div>
 
     <script>
@@ -311,8 +433,32 @@ const feedback = document.querySelector('#feedbackDiv');
 const loadingDiv = document.querySelector('#loadingDiv');
 const scoreDisplay = document.querySelector('#scoreDisplay');
 const evaluateBtn = document.querySelector('#evaluateBtn');
-const serverStatusEl = document.getElementById('serverStatus');
+const serverStatusBtn = document.getElementById('serverStatusBtn');
+const serverStatusText = document.getElementById('serverStatusText');
+const serverStatusDot = document.getElementById('serverStatusDot');
+const statusModalOverlay = document.getElementById('statusModalOverlay');
+const statusModal = document.getElementById('statusModal');
+const statusModalBody = document.getElementById('statusModalBody');
+const statusModalClose = document.getElementById('statusModalClose');
 const criterionSelect = document.getElementById('criterionSelect');
+const contentWrapper = document.querySelector('.content-wrapper');
+const containerEl = document.querySelector('.container');
+
+// Fit content in viewport without scroll (scale down if needed)
+function fitInViewport() {
+    if (!containerEl || !contentWrapper) return;
+    const available = containerEl.clientHeight;
+    contentWrapper.style.transform = '';
+    contentWrapper.style.transformOrigin = '';
+    const need = contentWrapper.scrollHeight;
+    if (need > available && available > 0) {
+        const scale = available / need;
+        contentWrapper.style.transformOrigin = 'top center';
+        contentWrapper.style.transform = 'scale(' + scale + ')';
+    }
+}
+fitInViewport();
+window.addEventListener('resize', fitInViewport);
 
 // Initially hide the feedback message
 feedback.style.display = 'none';
@@ -342,24 +488,41 @@ function populateCriterionDropdown() {
 criterionSelect.addEventListener('change', updateCriterionLabels);
 populateCriterionDropdown();
 
-// Check backend on load and show clear instructions if not running
+// Check backend on load; update status button (text + dot). Details in modal when button is clicked.
 function checkServer() {
-    serverStatusEl.className = 'server-status';
-    serverStatusEl.textContent = 'Checking server...';
-    serverStatusEl.style.display = 'block';
+    serverStatusText.textContent = 'Checking...';
+    serverStatusDot.className = 'status-dot checking';
+    statusModal.classList.remove('ok', 'error');
+    statusModalBody.innerHTML = '';
+
     fetch(API_BASE + '/health', { method: 'GET' })
         .then(r => r.json())
         .then(data => {
-            serverStatusEl.className = 'server-status ok';
-            serverStatusEl.textContent = 'Server connected. You can generate visual aids.';
+            serverStatusText.textContent = 'ML';
+            serverStatusDot.className = 'status-dot connected';
+            statusModal.className = 'status-modal ok';
+            statusModalBody.innerHTML = 'Server is running. You can generate visual aids.';
         })
         .catch(() => {
-            serverStatusEl.className = 'server-status error';
+            serverStatusText.textContent = '后端没连接';
+            serverStatusDot.className = 'status-dot disconnected';
+            statusModal.className = 'status-modal error';
             const projectRoot = document.location.pathname.replace(/\/interface\/.*$/, '');
-            serverStatusEl.innerHTML = 'Backend not running — "Failed to fetch" means the AI server is off.<br>' +
+            statusModalBody.innerHTML = 'Backend not running — "Failed to fetch" means the AI server is off.<br><br>' +
                 'Start it: open <strong>Terminal</strong>, run: <code>cd "' + projectRoot + '/ml" && python3 start_server.py</code> and keep that window open.';
         });
 }
+function openStatusModal() {
+    statusModalOverlay.classList.add('show');
+}
+function closeStatusModal() {
+    statusModalOverlay.classList.remove('show');
+}
+serverStatusBtn.addEventListener('click', openStatusModal);
+statusModalClose.addEventListener('click', closeStatusModal);
+statusModalOverlay.addEventListener('click', function (e) {
+    if (e.target === statusModalOverlay) closeStatusModal();
+});
 checkServer();
 
 // Define grey color palette
@@ -498,6 +661,8 @@ function addBlockToPage() {
         leftImg.style.display = 'block';
         rightImg.src = window._lastMoreDataUrl;
         rightImg.style.display = 'block';
+        document.getElementById('leftSlot').classList.add('has-result');
+        document.getElementById('rightSlot').classList.add('has-result');
     } else {
         const name = criterionSelect.selectedOptions[0] ? criterionSelect.selectedOptions[0].textContent : 'visual harmony';
         alert('Generate visual aids first to see less and more ' + name.toLowerCase() + ' here.');
@@ -657,6 +822,8 @@ async function evaluateWithAI() {
         leftImg.style.display = 'block';
         rightImg.src = moreDataUrl;
         rightImg.style.display = 'block';
+        document.getElementById('leftSlot').classList.add('has-result');
+        document.getElementById('rightSlot').classList.add('has-result');
 
     } catch (error) {
         console.error('Error evaluating with AI:', error);

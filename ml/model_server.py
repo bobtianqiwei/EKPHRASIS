@@ -160,5 +160,10 @@ def index():
     """Serve the frontend so user opens http://localhost:5001/ (no file://)."""
     return send_from_directory(INTERFACE_DIR, 'interface.html')
 
+@app.route('/logo.png')
+def logo():
+    """Serve topbar logo."""
+    return send_from_directory(INTERFACE_DIR, 'logo.png')
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001) 
