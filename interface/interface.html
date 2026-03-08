@@ -167,6 +167,14 @@
             max-height: 100%;
             overflow: hidden;
         }
+        .content-wrapper.test-model-active {
+            width: 100%;
+            max-width: 100%;
+            align-items: stretch;
+        }
+        .content-wrapper.test-model-active #testModelSection {
+            min-width: 0;
+        }
 
         .canvas-container {
             width: 375px;
@@ -458,6 +466,16 @@
             box-sizing: border-box;
         }
         .chess-message-area.empty { visibility: hidden; }
+        #testModelSection { display: none; padding: 24px; max-width: 100%; width: 100%; box-sizing: border-box; margin: 0; overflow-y: auto; min-width: 0; }
+        #testModelSection.show { display: block; }
+        .test-model-upload { margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .test-model-upload input[type="file"] { font-size: 14px; }
+        .test-model-results { display: grid; grid-template-columns: repeat(auto-fill, 160px); gap: 16px; justify-content: start; width: 100%; box-sizing: border-box; }
+        .test-model-card { width: 160px; height: 160px; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; background: #f5f5f5; position: relative; display: flex; flex-direction: column; }
+        .test-model-card img { display: block; width: 160px; height: 160px; object-fit: contain; background: #f5f5f5; }
+        .test-model-card .score { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 8px; font-size: 13px; font-weight: 600; color: #333; background: rgba(255,255,255,0.95); border-top: 1px solid #eee; }
+        .test-model-card .score span { color: #666; font-weight: 400; font-size: 11px; }
+        .test-model-error { color: #c00; padding: 12px; }
         .criterion-label {
             font-size: 14px;
             color: #333;
@@ -604,6 +622,7 @@
         </div>
         <div class="container">
         <div class="content-wrapper">
+            <div id="mainContent">
             <div class="upper-section">
                 <div class="prompt">
                     Create a composition with blocks in varying sizes and shades of grey.<br>
@@ -692,6 +711,15 @@
             <div class="feedback" id="feedbackDiv" style="display: none;">
                 Analysis will appear here...
             </div>
+            </div>
+            <div id="testModelSection">
+                <div class="test-model-upload">
+                    <input type="file" id="testModelFileInput" accept="image/*" multiple>
+                    <button type="button" class="button" id="testModelRunBtn">Run model</button>
+                </div>
+                <div id="testModelError" class="test-model-error" style="display: none;"></div>
+                <div id="testModelResults" class="test-model-results"></div>
+            </div>
         </div>
         </div>
         <header class="topbar bottombar">
@@ -701,6 +729,7 @@
                     <option value="canvas">Canvas</option>
                     <option value="visual_aids" selected>Visual Aids</option>
                     <option value="chess">Chess</option>
+                    <option value="test_model">Test Model</option>
                 </select>
             </div>
             <div class="topbar-center">
@@ -797,14 +826,25 @@ aboutModalOverlay.addEventListener('click', function (e) {
     if (e.target === aboutModalOverlay) aboutModalOverlay.classList.remove('show');
 });
 
-// Mode: Canvas (hide row), Visual aids (generate button), Chess (strategy dropdown). Message area always in layout (fixed height) so content above does not shift.
+// Mode: Canvas (hide row), Visual aids (generate button), Chess (strategy dropdown), Test model (upload + results only).
 function applyMode() {
+    const mainContent = document.getElementById('mainContent');
+    const testModelSection = document.getElementById('testModelSection');
     const actionRow = document.getElementById('actionRow');
     const evaluateBtnEl = document.getElementById('evaluateBtn');
     const chessControlEl = document.getElementById('chessControl');
     const chessMessageEl = document.getElementById('chessMessageArea');
     const chessPromptEl = document.getElementById('chessPromptLine');
     const mode = modeSelect.value;
+    if (mode === 'test_model') {
+        if (mainContent) mainContent.style.display = 'none';
+        if (testModelSection) { testModelSection.style.display = 'block'; testModelSection.classList.add('show'); }
+        if (contentWrapper) contentWrapper.classList.add('test-model-active');
+    } else {
+        if (mainContent) mainContent.style.display = '';
+        if (testModelSection) { testModelSection.style.display = 'none'; testModelSection.classList.remove('show'); }
+        if (contentWrapper) contentWrapper.classList.remove('test-model-active');
+    }
     if (mode === 'canvas') {
         actionRow.style.visibility = 'hidden';
         if (chessMessageEl) setChessMessage('');
@@ -825,6 +865,63 @@ function applyMode() {
 }
 modeSelect.addEventListener('change', applyMode);
 applyMode();
+
+// Test Model: run uploaded images through current criterion, show image + score per result
+document.getElementById('testModelRunBtn').addEventListener('click', async function () {
+    const input = document.getElementById('testModelFileInput');
+    const resultsEl = document.getElementById('testModelResults');
+    const errorEl = document.getElementById('testModelError');
+    const btn = this;
+    if (!input.files || input.files.length === 0) {
+        errorEl.textContent = 'Please select one or more images.';
+        errorEl.style.display = 'block';
+        return;
+    }
+    errorEl.style.display = 'none';
+    resultsEl.innerHTML = '';
+    btn.disabled = true;
+    btn.textContent = 'Running…';
+    try {
+        const files = Array.from(input.files);
+        const images = await Promise.all(files.map(f => new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(f);
+        })));
+        const criterion = criterionSelect.value;
+        const res = await fetch(API_BASE + '/predict_multiple', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ criterion, images })
+        });
+        if (!res.ok) throw new Error(await res.text() || 'Request failed');
+        const result = await res.json();
+        if (result.error) throw new Error(result.error);
+        const byIndex = {};
+        (result.all_results || []).forEach(r => { byIndex[r.index] = r; });
+        images.forEach((dataUrl, i) => {
+            const r = byIndex[i];
+            const card = document.createElement('div');
+            card.className = 'test-model-card';
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.alt = 'Image ' + (i + 1);
+            const scoreEl = document.createElement('div');
+            scoreEl.className = 'score';
+            const pct = r ? (r.confidence * 100).toFixed(1) : '—';
+            scoreEl.innerHTML = pct + '% <span>(More)</span>';
+            card.appendChild(img);
+            card.appendChild(scoreEl);
+            resultsEl.appendChild(card);
+        });
+    } catch (e) {
+        errorEl.textContent = e.message || 'Error running model.';
+        errorEl.style.display = 'block';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Run model';
+});
 
 // Fit content in viewport without scroll (scale down if needed)
 function fitInViewport() {
