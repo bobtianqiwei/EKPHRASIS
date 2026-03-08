@@ -990,7 +990,7 @@ async function computerTurn() {
             const block = generateRandomBlock();
             rectangles.push(block);
             clearRedoStack();
-            renderRectangles();
+            renderRectanglesWithFadeIn(rectangles.length - 1, 500);
         } else {
             const candidateBlocks = [];
             for (let i = 0; i < 20; i++) candidateBlocks.push(generateRandomBlock());
@@ -1006,7 +1006,7 @@ async function computerTurn() {
             const chosen = candidateBlocks[idx];
             rectangles.push(chosen);
             clearRedoStack();
-            renderRectangles();
+            renderRectanglesWithFadeIn(rectangles.length - 1, 500);
         }
         const score = await chessRunModel();
         if (score >= getChessTargetScore()) {
@@ -1249,6 +1249,29 @@ function renderRectangles() {
         ctx.fillStyle = rect.color;
         ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
     });
+}
+
+// Render with the rectangle at rectIndex fading in over durationMs (for chess computer block)
+function renderRectanglesWithFadeIn(rectIndex, durationMs) {
+    const start = performance.now();
+    function frame(now) {
+        const elapsed = now - start;
+        const t = Math.min(1, elapsed / durationMs);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        rectangles.forEach((rect, i) => {
+            if (i === rectIndex) {
+                ctx.globalAlpha = t;
+                ctx.fillStyle = rect.color;
+                ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+                ctx.globalAlpha = 1;
+            } else {
+                ctx.fillStyle = rect.color;
+                ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+            }
+        });
+        if (t < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
 }
 
 // Clear canvas
