@@ -26,12 +26,14 @@ def check_dependencies():
     return True
 
 def check_model_file():
-    """Check if the trained model file exists"""
-    model_path = Path("composition_model.h5")
-    if not model_path.exists():
-        print("Model file 'composition_model.h5' not found!")
-        print("Please run the training script first:")
-        print("python train_and_save_model.py")
+    """Check if at least one criterion model exists in ml/models/"""
+    models_dir = Path(__file__).resolve().parent / "models"
+    if not models_dir.exists():
+        print("Models directory 'ml/models/' not found!")
+        return False
+    if not list(models_dir.glob("*.h5")):
+        print("No .h5 model file found in ml/models/. Train a vocabulary first:")
+        print("  python train_and_save_model.py visual_balance")
         return False
     return True
 

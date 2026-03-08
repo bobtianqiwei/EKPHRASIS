@@ -14,9 +14,9 @@ pip install -r requirements.txt
 
 ### Step 2: Train the Model
 ```bash
-python train_and_save_model.py
+python train_and_save_model.py visual_balance
 ```
-*This may take a few minutes the first time*
+*Requires `dataset/visual_balance/class_0` and `class_1`. May take a few minutes the first time.*
 
 ### Step 3: Start the System
 ```bash
@@ -49,7 +49,7 @@ Then open `interface/interface.html` in your browser.
 ## Troubleshooting
 
 **"Model not found" error:**
-- Run the training script first: `python train_and_save_model.py`
+- Run the training script first: `cd ml && python train_and_save_model.py visual_balance`
 
 **"Server connection failed" error:**
 - Make sure the server is running: `python start_server.py`
@@ -63,7 +63,9 @@ Then open `interface/interface.html` in your browser.
 - `interface/interface.html` - Main user interface
 - `ml/model_server.py` - AI prediction server
 - `ml/train_and_save_model.py` - Model training script
-- `dataset/balance/Bob's classes/` - Training data
+- `dataset/visual_balance/` - Training data (class_0, class_1)
+- `ml/models/` - Trained model files (.h5)
+- `archive/` - Old demos and notebooks (not needed to run)
 
 ## Support
 

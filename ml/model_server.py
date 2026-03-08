@@ -16,10 +16,9 @@ CORS(app)  # Enable CORS for all routes
 INTERFACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'interface')
 
 # Each design vocabulary has its own model. Add new entries when you train new models.
-# model_file is relative to the ml/ directory.
+# model_file is relative to the ml/ directory (e.g. models/visual_balance.h5).
 CRITERIA = [
-    {'id': 'visual_harmony', 'name': 'Visual Harmony', 'model_file': 'composition_model.h5'},
-    {'id': 'visual_balance', 'name': 'Visual Balance', 'model_file': 'visual_balance_model.h5'},
+    {'id': 'visual_balance', 'name': 'Visual Balance', 'model_file': 'models/visual_balance.h5'},
 ]
 
 # Load all criterion models at startup (criterion_id -> Keras model)
@@ -32,7 +31,7 @@ for c in CRITERIA:
         print(f"Warning: Could not load {c['model_file']} for '{c['name']}': {e}")
 
 # Legacy single-model reference for /health (any loaded model counts as "ready")
-model = models.get('visual_harmony') or (list(models.values())[0] if models else None)
+model = list(models.values())[0] if models else None
 
 def predict_image_from_base64(base64_string, model_obj):
     """
@@ -82,7 +81,7 @@ def predict():
         if 'image' not in data:
             return jsonify({"error": "No image data provided"}), 400
         
-        criterion = data.get('criterion', 'visual_harmony')
+        criterion = data.get('criterion', 'visual_balance')
         model_obj = models.get(criterion)
         if not model_obj:
             return jsonify({"error": f"Unknown criterion or model not loaded: {criterion}"}), 400
@@ -101,14 +100,14 @@ def list_criteria():
 def predict_multiple():
     """
     API endpoint to predict multiple images and return best/worst scores.
-    Expects JSON with 'images' (base64 array) and optional 'criterion' (e.g. 'visual_harmony').
+    Expects JSON with 'images' (base64 array) and optional 'criterion' (e.g. 'visual_balance').
     """
     try:
         data = request.get_json()
         if 'images' not in data:
             return jsonify({"error": "No images data provided"}), 400
         
-        criterion = data.get('criterion', 'visual_harmony')
+        criterion = data.get('criterion', 'visual_balance')
         model_obj = models.get(criterion)
         if not model_obj:
             return jsonify({"error": f"Unknown criterion or model not loaded: {criterion}"}), 400

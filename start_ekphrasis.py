@@ -52,14 +52,16 @@ def ensure_flask_cors():
         return False
 
 def check_model_file():
-    """Check if the trained model exists"""
-    model_path = Path("ml/composition_model.h5")
-    if model_path.exists():
-        print("✓ Trained model found")
-        return True
-    else:
-        print("⚠️  Trained model not found")
+    """Check if at least one vocabulary model exists in ml/models/"""
+    models_dir = Path("ml/models")
+    if not models_dir.exists():
+        print("⚠️  ml/models/ not found")
         return False
+    if list(models_dir.glob("*.h5")):
+        print("✓ Trained model(s) found")
+        return True
+    print("⚠️  No .h5 model in ml/models/")
+    return False
 
 def install_dependencies():
     """Install ML dependencies"""
@@ -74,11 +76,11 @@ def install_dependencies():
         return False
 
 def train_model():
-    """Train the ML model"""
-    print("Training the ML model...")
+    """Train the ML model for default vocabulary (visual_balance)"""
+    print("Training the ML model (visual_balance)...")
     print("This may take several minutes...")
     try:
-        result = subprocess.run([sys.executable, "train_and_save_model.py"],
+        result = subprocess.run([sys.executable, "train_and_save_model.py", "visual_balance"],
                               cwd="ml", check=True, capture_output=True, text=True)
         print("✓ Model training completed")
         return True

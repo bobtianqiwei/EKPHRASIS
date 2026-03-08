@@ -505,8 +505,8 @@
             <div class="upper-section">
                 <div class="prompt">
                     Create a composition with blocks in varying sizes and shades of grey.<br>
-                    Arrange them to achieve <strong id="promptCriterionName">Visual Harmony</strong>, either spaced apart or overlapping.<br>
-                    <span class="prompt-chess-only" id="chessPromptLine" style="display: none;">You draw one, then the computer draws one, until you reach <span id="chessPromptCriterion">Visual Harmony</span>.</span>
+                    Arrange them to achieve <strong id="promptCriterionName">Visual Balance</strong>, either spaced apart or overlapping.<br>
+                    <span class="prompt-chess-only" id="chessPromptLine" style="display: none;">You draw one, then the computer draws one, until you reach <span id="chessPromptCriterion">Visual Balance</span>.</span>
                 </div>
 
                 <div class="controls">
@@ -533,7 +533,7 @@
             <div class="suggestion-grid">
                 <div class="suggestion-box" id="leftSlot">
                     <img id="leftSlotImg" alt="Less" style="display: none;">
-                    <div class="preview-label" id="leftSlotLabel">Less <span id="criterionNameSlot">Visual Harmony</span><span id="leftSlotScore"></span></div>
+                    <div class="preview-label" id="leftSlotLabel">Less <span id="criterionNameSlot">Visual Balance</span><span id="leftSlotScore"></span></div>
                 </div>
                 <div class="canvas-wrapper">
                     <div class="canvas-container">
@@ -543,7 +543,7 @@
                 </div>
                 <div class="suggestion-box" id="rightSlot">
                     <img id="rightSlotImg" alt="More" style="display: none;">
-                    <div class="preview-label" id="rightSlotLabel">More <span id="criterionNameSlot2">Visual Harmony</span><span id="rightSlotScore"></span></div>
+                    <div class="preview-label" id="rightSlotLabel">More <span id="criterionNameSlot2">Visual Balance</span><span id="rightSlotScore"></span></div>
                 </div>
             </div>
 
@@ -569,11 +569,11 @@
             
             <div class="score-display" id="scoreDisplay" style="display: none;">
                 <div class="score-box">
-                    <div class="score-label" id="lessScoreLabel">Less <span id="criterionNameLess">Visual Harmony</span></div>
+                    <div class="score-label" id="lessScoreLabel">Less <span id="criterionNameLess">Visual Balance</span></div>
                     <div class="score-value" id="lessScore">-</div>
                 </div>
                 <div class="score-box">
-                    <div class="score-label" id="moreScoreLabel">More <span id="criterionNameMore">Visual Harmony</span></div>
+                    <div class="score-label" id="moreScoreLabel">More <span id="criterionNameMore">Visual Balance</span></div>
                     <div class="score-value" id="moreScore">-</div>
                 </div>
             </div>
@@ -595,7 +595,7 @@
             <div class="topbar-center">
                 <label for="criterionSelect" class="criterion-label">Practice vocabulary:</label>
                 <select id="criterionSelect" class="criterion-select">
-                    <option value="visual_harmony">Visual Harmony</option>
+                    <option value="visual_balance">Visual Balance</option>
                 </select>
             </div>
             <div class="topbar-right">
@@ -620,7 +620,7 @@ let currentColor = '#D9D9D9'; // Default color
 const API_BASE = (window.location.hostname === 'localhost' && window.location.port === '5001') ? '' : 'http://localhost:5001';
 
 // Design vocabularies: loaded from API (GET /criteria), fallback if server offline
-let CRITERIA_LIST = [{ id: 'visual_harmony', name: 'Visual Harmony' }];
+let CRITERIA_LIST = [{ id: 'visual_balance', name: 'Visual Balance' }];
 
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
@@ -735,7 +735,7 @@ feedback.style.display = 'none';
 
 function updateCriterionLabels() {
     const opt = criterionSelect.selectedOptions[0];
-    const name = opt ? opt.textContent : 'Visual Harmony';
+    const name = opt ? opt.textContent : 'Visual Balance';
     ['criterionNameSlot', 'criterionNameSlot2', 'criterionNameLess', 'criterionNameMore', 'promptCriterionName', 'chessPromptCriterion'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = name;
@@ -1164,7 +1164,7 @@ async function evaluateWithAI() {
         const allVariations = [rectangles, ...variations];
         const images = allVariations.map(r => generateImageAsBase64(r));
 
-        // Send to ML model server (criterion = selected vocabulary, e.g. visual_harmony)
+        // Send to ML model server (criterion = selected vocabulary, e.g. visual_balance)
         const criterion = criterionSelect.value;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);

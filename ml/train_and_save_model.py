@@ -1,4 +1,7 @@
-#EKPHRASIS by Bob Tianqi Wei, Shayne Shen, UC Berkeley, 2024
+# train_and_save_model.py developed by Bob Tianqi Wei
+# EKPHRASIS by Bob Tianqi Wei, Shayne Shen, UC Berkeley, 2024
+# Train one model per vocabulary. Dataset: dataset/<vocabulary_id>/class_0, class_1.
+# Usage: python train_and_save_model.py <vocabulary_id>   e.g. python train_and_save_model.py visual_balance
 
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras.models import Model
@@ -6,66 +9,80 @@ from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import os
+import sys
 
-def train_composition_model():
-    # Load the pre-trained VGG16 model without the top classification layer
+# Vocabulary id must match CRITERIA in model_server.py and a folder under dataset/
+CLASS_ORDER = ['class_0', 'class_1']  # class_0 = less, class_1 = more (app shows high = More)
+
+def train_vocabulary_model(vocabulary_id: str):
+    if not vocabulary_id or vocabulary_id.strip() == '':
+        print("Usage: python train_and_save_model.py <vocabulary_id>")
+        print("  e.g. python train_and_save_model.py visual_balance")
+        print("  Dataset must exist: ../dataset/<vocabulary_id>/class_0 and class_1")
+        sys.exit(1)
+    vocabulary_id = vocabulary_id.strip()
+
+    # Paths: dataset and output model (under ml/)
+    ml_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(ml_dir)
+    data_dir = os.path.join(project_root, 'dataset', vocabulary_id)
+    if not os.path.isdir(data_dir):
+        print(f"Dataset directory not found: {data_dir}")
+        sys.exit(1)
+    for c in CLASS_ORDER:
+        p = os.path.join(data_dir, c)
+        if not os.path.isdir(p):
+            print(f"Missing class folder: {p}")
+            sys.exit(1)
+
+    # Model: VGG16 + head
     base_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
-
-    # Freeze the convolutional layers of VGG16 to prevent them from being updated during training
     for layer in base_model.layers:
         layer.trainable = False
-
-    # Add custom classification layers
     x = base_model.output
-    x = Flatten()(x)  # Flatten the feature maps
-    x = Dense(128, activation='relu')(x)  # Fully connected layer
-    predictions = Dense(1, activation='sigmoid')(x)  # Output layer with sigmoid activation for binary classification
-
-    # Define the new model
+    x = Flatten()(x)
+    x = Dense(128, activation='relu')(x)
+    predictions = Dense(1, activation='sigmoid')(x)
     model = Model(inputs=base_model.input, outputs=predictions)
-
-    # Compile the model
     model.compile(optimizer=Adam(), loss='binary_crossentropy', metrics=['accuracy'])
-
-    # Display the model architecture
     model.summary()
 
-    # Set the path to the dataset
-    data_dir = "../dataset/balance/Bob's classes"  # Path to your dataset
-
-    # Use ImageDataGenerator to automatically split the dataset into training and validation sets
-    datagen = ImageDataGenerator(rescale=1./255, validation_split=0.2)  # 80% for training, 20% for validation
-
-    # Load training data
+    # Data
+    datagen = ImageDataGenerator(rescale=1./255, validation_split=0.2)
     train_generator = datagen.flow_from_directory(
         data_dir,
-        target_size=(224, 224),  # VGG16 requires input images to be 224x224
+        target_size=(224, 224),
         batch_size=32,
-        class_mode='binary',  # Binary classification task
-        subset='training'  # Use 80% of the data for training
+        class_mode='binary',
+        classes=CLASS_ORDER,
+        subset='training'
     )
-
-    # Load validation data
     validation_generator = datagen.flow_from_directory(
         data_dir,
         target_size=(224, 224),
         batch_size=32,
         class_mode='binary',
-        subset='validation'  # Use 20% of the data for validation
+        classes=CLASS_ORDER,
+        subset='validation'
     )
 
-    # Train the model
+    # Train
     history = model.fit(
         train_generator,
         steps_per_epoch=train_generator.samples // train_generator.batch_size,
         validation_data=validation_generator,
         validation_steps=validation_generator.samples // validation_generator.batch_size,
-        epochs=10  # Set the number of epochs according to your dataset
+        epochs=10
     )
 
-    # Save the trained model
-    model.save('composition_model.h5')
-    print("Model saved as composition_model.h5")
+    # Save under ml/models/
+    models_dir = os.path.join(ml_dir, 'models')
+    os.makedirs(models_dir, exist_ok=True)
+    out_path = os.path.join(models_dir, f'{vocabulary_id}.h5')
+    model.save(out_path)
+    print(f"Model saved: {out_path}")
+    print("Register this vocabulary in ml/model_server.py CRITERIA if not already there.")
 
 if __name__ == "__main__":
-    train_composition_model() 
+    vocabulary_id = sys.argv[1] if len(sys.argv) > 1 else ""
+    train_vocabulary_model(vocabulary_id)

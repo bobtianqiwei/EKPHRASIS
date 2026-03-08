@@ -35,16 +35,16 @@ EKPHRASIS/
 │   └── interface.html          # Main user interface
 ├── ml/
 │   ├── model_server.py         # Flask API server
-│   ├── train_and_save_model.py # Model training script
+│   ├── train_and_save_model.py # Train one model per vocabulary
 │   ├── start_server.py         # Server startup script
-│   ├── test_system.py          # System testing script
-│   ├── requirements.txt        # Python dependencies
-│   └── README.md              # ML module documentation
-└── dataset/
-    └── balance/
-        └── Bob's classes/
-            ├── class_0/        # Less harmonious compositions
-            └── class_1/        # More harmonious compositions
+│   ├── models/                 # One .h5 per vocabulary (e.g. visual_balance.h5)
+│   ├── requirements.txt
+│   └── README.md
+├── dataset/                    # One folder per vocabulary
+│   └── visual_balance/
+│       ├── class_0/            # Less [criterion] (e.g. less balanced)
+│       └── class_1/            # More [criterion]
+└── archive/                    # Old demos, notebooks, unused assets
 ```
 
 ## Quick Start
@@ -58,8 +58,8 @@ cd ml
 # Install dependencies
 pip install -r requirements.txt
 
-# Train the model (first time only)
-python train_and_save_model.py
+# Train a vocabulary model (first time or when adding a new one)
+python train_and_save_model.py visual_balance
 
 # Start the ML server
 python start_server.py
@@ -148,11 +148,10 @@ python test_system.py
 
 Each design term (e.g. Visual Harmony) has its own trained model. To add another:
 
-1. **Train a model** for the new term (e.g. “Balance”): prepare a dataset with `class_0` (less) and `class_1` (more), duplicate or adapt `ml/train_and_save_model.py` to save e.g. `balance_model.h5` in the `ml/` directory.
-2. **Register the criterion** in `ml/model_server.py`: add an entry to the `CRITERIA` list, e.g. `{'id': 'balance', 'name': 'Balance', 'model_file': 'balance_model.h5'}`.
-3. Restart the server. The dropdown will load options from `GET /criteria` (only criteria whose model file loaded successfully appear).
-
-The frontend dropdown is filled from the backend; no frontend change is required when you add a new criterion.
+1. **Add dataset**: Create dataset/<vocabulary_id>/ with class_0/ (less) and class_1/ (more). Example: dataset/visual_harmony/class_0/, dataset/visual_harmony/class_1/.
+2. **Train**: `cd ml && python train_and_save_model.py <vocabulary_id>` (e.g. `python train_and_save_model.py visual_harmony`). This saves `ml/models/<vocabulary_id>.h5`.
+3. **Register** in `ml/model_server.py`: add to the `CRITERIA` list, e.g. `{'id': 'visual_harmony', 'name': 'Visual Harmony', 'model_file': 'models/visual_harmony.h5'}`.
+4. Restart the server. The dropdown loads from `GET /criteria`. The frontend dropdown is filled from `GET /criteria`.
 
 ### Adding New Features
 
@@ -162,10 +161,16 @@ The frontend dropdown is filled from the backend; no frontend change is required
 
 ### Dataset Structure
 
+One folder per vocabulary; each has `class_0` (less) and `class_1` (more):
+
 ```
-dataset/balance/Bob's classes/
-├── class_0/  # Less harmonious compositions (PNG files)
-└── class_1/  # More harmonious compositions (PNG files)
+dataset/
+├── visual_balance/
+│   ├── class_0/  # Less [criterion] (PNG files)
+│   └── class_1/  # More [criterion] (PNG files)
+└── visual_harmony/   # When you add this vocabulary
+    ├── class_0/
+    └── class_1/
 ```
 
 ## Credits
