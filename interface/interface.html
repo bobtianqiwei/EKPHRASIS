@@ -277,7 +277,7 @@
         }
         .suggestion-grid {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
             margin: 12px 0;
             flex-shrink: 0;
@@ -285,37 +285,51 @@
             width: 100%;
             margin-left: auto;
             margin-right: auto;
-            gap: 80px;
+            gap: 20px;
             padding-left: 80px;
             padding-right: 80px;
             box-sizing: border-box;
         }
         .suggestion-box {
             flex: 0 0 auto;
-            width: 200px;
-            height: 375px;
-            position: relative;
+            width: 375px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
             text-align: center;
             background: transparent;
-            border: none;
             padding: 0;
         }
+        .suggestion-box:not(.has-result) {
+            width: 0;
+            min-width: 0;
+            overflow: hidden;
+            padding: 0;
+            visibility: hidden;
+        }
+        .suggestion-box-image-wrap {
+            width: 375px;
+            height: 375px;
+            flex-shrink: 0;
+            border: 1px solid #ccc;
+            background-color: white;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .suggestion-box img {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
             margin: 0;
-            background: transparent;
         }
         .suggestion-box .preview-label {
             display: none;
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: calc(50% + 108px);
+            margin-top: 8px;
             font-size: 12px;
             font-weight: 300;
             color: #888;
@@ -613,7 +627,9 @@
 
             <div class="suggestion-grid">
                 <div class="suggestion-box" id="leftSlot">
-                    <img id="leftSlotImg" alt="Less" style="display: none;">
+                    <div class="suggestion-box-image-wrap">
+                        <img id="leftSlotImg" alt="Less" style="display: none;">
+                    </div>
                     <div class="preview-label" id="leftSlotLabel">Less <span id="criterionNameSlot">Visual Balance</span><span id="leftSlotScore"></span></div>
                 </div>
                 <div class="canvas-wrapper">
@@ -623,7 +639,9 @@
                     <div class="canvas-score-label empty" id="canvasScoreLabel" aria-live="polite"></div>
                 </div>
                 <div class="suggestion-box" id="rightSlot">
-                    <img id="rightSlotImg" alt="More" style="display: none;">
+                    <div class="suggestion-box-image-wrap">
+                        <img id="rightSlotImg" alt="More" style="display: none;">
+                    </div>
                     <div class="preview-label" id="rightSlotLabel">More <span id="criterionNameSlot2">Visual Balance</span><span id="rightSlotScore"></span></div>
                 </div>
             </div>
@@ -1302,7 +1320,7 @@ async function evaluateWithAI() {
         window._lastUserPct = userResult ? (userResult.confidence * 100).toFixed(1) : null;
 
         // Left = Less [criterion], Right = More [criterion] (indices into allVariations: 0 = user, 1..20 = variations)
-        const previewSize = 200;
+        const previewSize = 375;
         const lessDataUrl = generateImageDataUrl(allVariations[result.worst.index], previewSize);
         const moreDataUrl = generateImageDataUrl(allVariations[result.best.index], previewSize);
         window._lastLessDataUrl = lessDataUrl;
