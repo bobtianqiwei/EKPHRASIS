@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asymmetrical Balance Composer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100%;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+        .content-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* This will center child elements horizontally */
+}
+
+.canvas-container {
+    width: 375px;
+    height: 375px;
+    background-color: white;
+    border: 1px solid #ccc;
+    margin-top: -50px; /* Keep the negative margin if you want it above other elements */
+    /* Remove margin-left and margin-right */
+}
+        .upper-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: scale(0.85);
+            transform-origin: top center;
+            margin-bottom: 40px;
+        }
+        .prompt {
+            width: 550px;
+            text-align: center;
+            margin-bottom: 40px;
+            line-height: 1.6;
+            color: #333;
+            font-size: 16px;
+        }
+        #drawingCanvas {
+            cursor: crosshair;
+            width: 100%;
+            height: 100%;
+        }
+        .controls {
+            width: 440px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .color-palette {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .button {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .instructions {
+            width: 440px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        .suggestion-grid {
+            display: flex;
+            gap: 10px;
+            margin-top: 100px;
+        }
+        .suggestion-box {
+            flex: 1;
+            aspect-ratio: 1;
+            background-color: #ddd;
+        }
+        .evaluate-button {
+        display: block;
+        margin: 20px auto;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        }
+        .feedback {
+            width: 500px;
+            text-align: center;
+            margin-bottom: 40px;
+            line-height: 1.6;
+            color: #333;
+            font-size: 13px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content-wrapper">
+            <div class="upper-section">
+                <div class="prompt">
+                    Create a composition with blocks in varying sizes and shades of grey. Arrange them to
+                    achieve <strong>visual harmony</strong>, either spaced apart or overlapping.
+                </div>
+
+                <div class="controls">
+                    <div class="color-palette">
+                        <div class="color-option" style="background-color: #D9D9D9;" onclick="setColor('#D9D9D9')"></div>
+                        <div class="color-option" style="background-color: #9C9C9C;" onclick="setColor('#9C9C9C')"></div>
+                        <div class="color-option" style="background-color: #535353;" onclick="setColor('#535353')"></div>
+                        <div class="color-option" style="background-color: #323131;" onclick="setColor('#323131')"></div>
+                        <div class="color-option" style="background-color: #000000;" onclick="setColor('#000000')"></div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="button" onclick="undoLastAction()">Go Back</button>
+                        <button class="button" onclick="clearCanvas()">Clear Canvas</button>
+                        <button class="button" onclick="exportImage()">Export</button>
+                    </div>
+                    
+                    <div class="instructions">
+                        Click and drag to draw rectangles. Drag existing rectangles to move them.
+                    </div>
+                </div>
+            </div>
+
+            <div class="canvas-container">
+                <canvas id="drawingCanvas" width="375" height="375"></canvas>
+            </div>
+            <button class="evaluate-button">Evaluate</button>
+            <div class="feedback">
+                There’s some effort to create less harmonious, but it feels a little awkward. The black square stands out, but the smaller shapes don’t balance it enough.
+            </div>
+        </div>
+    </div>
+
+    <script>
+let isDrawing = false;
+let isDragging = false;
+let startX, startY;
+let rectangles = [];
+let currentRectangle = null;
+let dragOffsetX, dragOffsetY;
+let blocksAdded = 0; // Counter for blocks added with "b" key
+let colorIndex = 0;  // To cycle through grey colors
+
+const canvas = document.getElementById('drawingCanvas');
+const ctx = canvas.getContext('2d');  // Get the 2D drawing context
+const feedback = document.querySelector('.feedback');
+
+// Initially hide the feedback message
+feedback.style.display = 'none';
+
+// Define your grey color palette
+const greyColors = ['#D9D9D9', '#9C9C9C', '#535353', '#323131', '#000000'];
+
+// Helper function to pick the next grey color in the sequence
+function getNextGreyColor() {
+    const color = greyColors[colorIndex % greyColors.length];
+    colorIndex++; // Cycle through the palette
+    return color;
+}
+
+canvas.addEventListener('mousedown', startDrawingOrDragging);
+canvas.addEventListener('mousemove', drawOrDragRectangle);
+canvas.addEventListener('mouseup', endDrawingOrDragging);
+
+// Handle keydown events for "n" and "b"
+document.addEventListener('keydown', handleKeyPress);
+
+function handleKeyPress(e) {
+    if (e.key === 'n') {
+        // Create a random rectangle with a color from the palette
+        addRandomRectangle();
+    } else if (e.key === 'b') {
+        // Add a block with grey color, positioned between margin and canvas edge
+        addBlockToPage();
+    }
+}
+
+function addRandomRectangle() {
+    const randomX = Math.random() * (canvas.width - 100); // Random x position
+    const randomY = Math.random() * (canvas.height - 100); // Random y position
+    const randomWidth = 50 + Math.random() * 100; // Width between 50 and 150
+    const randomHeight = 50 + Math.random() * 100; // Height between 50 and 150
+    const randomColor = getNextGreyColor(); // Assign the next grey color
+
+    const randomRectangle = {
+        x: randomX,
+        y: randomY,
+        width: randomWidth,
+        height: randomHeight,
+        color: randomColor
+    };
+    rectangles.push(randomRectangle);
+    renderRectangles();
+}
+
+function addBlockToPage() {
+    const blockSize = 200;
+
+    // Create image elements for both blocks
+    const leftImage = document.createElement('img');
+    leftImage.src = './left.png'; // Replace with the correct path for the left image
+    leftImage.style.width = blockSize + 'px';
+    leftImage.style.height = blockSize + 'px';
+    leftImage.style.position = 'absolute';
+    leftImage.style.top = `calc(40% + 0px)`; // Keep position unchanged
+
+    const rightImage = document.createElement('img');
+    rightImage.src = './right.png'; // Replace with the correct path for the right image
+    rightImage.style.width = blockSize + 'px';
+    rightImage.style.height = blockSize + 'px';
+    rightImage.style.position = 'absolute';
+    rightImage.style.top = `calc(40% + 0px)`; // Keep position unchanged
+
+    // Create the label elements
+    const leftLabel = document.createElement('div');
+    leftLabel.style.position = 'absolute';
+    leftLabel.style.fontSize = '12px'; 
+    leftLabel.style.color = '#000000'; 
+    leftLabel.style.textAlign = 'center';
+    leftLabel.style.width = blockSize + 'px';
+    leftLabel.style.zIndex = '20';  // Increased z-index to ensure the label is on top
+
+    const rightLabel = document.createElement('div');
+    rightLabel.style.position = 'absolute';
+    rightLabel.style.fontSize = '12px';
+    rightLabel.style.color = '#000000'; 
+    rightLabel.style.textAlign = 'center';
+    rightLabel.style.width = blockSize + 'px';
+    rightLabel.style.zIndex = '20';  // Increased z-index to ensure the label is on top
+
+    // Get canvas position on the page
+    const canvasRect = canvas.getBoundingClientRect(); 
+
+    const labelTop = `calc(40% - 30px)`; 
+
+    if (blocksAdded % 2 === 0) {
+        // Left side: place the left image 80px from the left edge of the canvas
+        leftImage.style.left = (canvasRect.left - blockSize - 120) + 'px'; 
+        leftLabel.style.left = (canvasRect.left - blockSize - 120) + 'px'; 
+        leftLabel.style.top = labelTop;
+        leftLabel.innerHTML = 'Less Harmonious';
+        
+        // Right side: place the right image 80px from the right edge of the canvas
+        rightImage.style.left = (canvasRect.right + 120) + 'px'; 
+        rightLabel.style.left = (canvasRect.right + 120) + 'px';
+        rightLabel.style.top = labelTop;
+        rightLabel.innerHTML = 'More Harmonious';
+    }
+
+    // Append images and labels to the body
+    document.body.appendChild(leftImage);
+    document.body.appendChild(leftLabel);
+    document.body.appendChild(rightImage);
+    document.body.appendChild(rightLabel);
+
+    blocksAdded++;
+}
+
+function startDrawingOrDragging(e) {
+    startX = e.clientX - canvas.getBoundingClientRect().left;
+    startY = e.clientY - canvas.getBoundingClientRect().top;
+
+    // Check if user clicked on an existing rectangle
+    currentRectangle = rectangles.find(rect => 
+        startX >= rect.x && startX <= rect.x + rect.width &&
+        startY >= rect.y && startY <= rect.y + rect.height
+    );
+
+    if (currentRectangle) {
+        // Start dragging the existing rectangle
+        isDragging = true;
+        dragOffsetX = startX - currentRectangle.x;
+        dragOffsetY = startY - currentRectangle.y;
+    } else {
+        // Start drawing a new rectangle
+        isDrawing = true;
+        currentRectangle = {
+            x: startX,
+            y: startY,
+            width: 0,
+            height: 0,
+            color: getNextGreyColor() // Assign next grey color for new rectangles
+        };
+        rectangles.push(currentRectangle); // Add the new rectangle to the list
+    }
+}
+
+function drawOrDragRectangle(e) {
+    if (isDrawing) {
+        // Calculate new width and height while drawing
+        const x = e.clientX - canvas.getBoundingClientRect().left;
+        const y = e.clientY - canvas.getBoundingClientRect().top;
+
+        currentRectangle.width = x - startX;
+        currentRectangle.height = y - startY;
+
+        renderRectangles(); // Redraw all rectangles
+    }
+
+    if (isDragging) {
+        // Move the rectangle while dragging
+        const x = e.clientX - canvas.getBoundingClientRect().left;
+        const y = e.clientY - canvas.getBoundingClientRect().top;
+
+        currentRectangle.x = x - dragOffsetX;
+        currentRectangle.y = y - dragOffsetY;
+
+        renderRectangles(); // Redraw all rectangles
+    }
+}
+
+function endDrawingOrDragging() {
+    isDrawing = false;
+    isDragging = false;
+}
+
+function renderRectangles() {
+    // Clear the canvas before redrawing
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Redraw all rectangles from the rectangles array
+    rectangles.forEach(rect => {
+        ctx.fillStyle = rect.color;
+        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    });
+}
+
+
+function clearCanvas() {
+    rectangles = [];
+    renderRectangles(); // Clear the drawing
+}
+
+// Show feedback message when clicking Evaluate
+document.querySelector('.evaluate-button').addEventListener('click', function() {
+    feedback.style.display = 'block'; // Show the feedback message
+});
+
+
+    </script>
+</body>
+</html>

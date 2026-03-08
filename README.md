@@ -32,19 +32,30 @@ If you use or build on EKPHRASIS, please cite our paper:
 ```
 EKPHRASIS/
 ├── interface/
-│   └── interface.html          # Main user interface
+│   ├── interface.html          # Main user interface
+│   └── logo.png
 ├── ml/
 │   ├── model_server.py         # Flask API server
 │   ├── train_and_save_model.py # Train one model per vocabulary
 │   ├── start_server.py         # Server startup script
+│   ├── test_system.py          # System test script
 │   ├── models/                 # One .h5 per vocabulary (e.g. visual_balance.h5)
 │   ├── requirements.txt
 │   └── README.md
-├── dataset/                    # One folder per vocabulary
-│   └── visual_balance/
-│       ├── class_0/            # Less [criterion] (e.g. less balanced)
-│       └── class_1/            # More [criterion]
-└── archive/                    # Old demos, notebooks, unused assets
+├── dataset/                    # Data per vocabulary
+│   ├── visual_balance/         # For vocabulary "visual_balance"
+│   │   ├── class_0/            # Less [criterion]
+│   │   └── class_1/            # More [criterion]
+│   ├── balance/                # Legacy path (Bob's classes)
+│   │   └── Bob's classes/
+│   │       ├── class_0/
+│   │       └── class_1/
+│   └── test_images/            # Test images
+├── other_files/
+│   └── archive/                # Old demos, notebooks (e.g. demo_backup)
+├── start_ekphrasis.py          # Launcher: train (if needed), start server, open browser
+├── Start EKPHRASIS.command     # macOS double-click launcher
+└── README.md
 ```
 
 ## Quick Start
@@ -81,8 +92,10 @@ to start the server and open the interface automatically.
 
 1. Use the canvas to create a composition with rectangles
 2. Choose colors from the grey palette
-3. Click **"Generate visual aids"** to get less/more effective examples (e.g. less/more visual harmony)
+3. Click **"Generate visual aids"** to get less/more effective examples (e.g. less/more visual balance)
 4. Compare the two images shown left and right of the canvas
+
+**System requirements**: Python 3.7+, modern web browser, 4GB+ RAM for the ML model. The server runs on port **5001** (avoid conflict with macOS AirPlay on 5000).
 
 ## How It Works
 
@@ -132,9 +145,9 @@ python test_system.py
 ### Common Issues
 
 1. **Server not starting**: Check if port 5001 is available (macOS may use 5000 for AirPlay)
-2. **Model not found**: Run training script first
+2. **Model not found**: Run `cd ml && python train_and_save_model.py visual_balance` (requires `dataset/visual_balance/class_0` and `class_1`)
 3. **Import errors**: Install dependencies with `pip install -r requirements.txt` and `pip install flask-cors`
-4. **Frontend can't connect**: Ensure server is running and open http://localhost:5001/
+4. **Frontend can't connect**: Ensure server is running and open **http://localhost:5001/**
 
 ### Performance Notes
 
@@ -151,7 +164,7 @@ Each design term (e.g. Visual Harmony) has its own trained model. To add another
 1. **Add dataset**: Create dataset/<vocabulary_id>/ with class_0/ (less) and class_1/ (more). Example: dataset/visual_harmony/class_0/, dataset/visual_harmony/class_1/.
 2. **Train**: `cd ml && python train_and_save_model.py <vocabulary_id>` (e.g. `python train_and_save_model.py visual_harmony`). This saves `ml/models/<vocabulary_id>.h5`.
 3. **Register** in `ml/model_server.py`: add to the `CRITERIA` list, e.g. `{'id': 'visual_harmony', 'name': 'Visual Harmony', 'model_file': 'models/visual_harmony.h5'}`.
-4. Restart the server. The dropdown loads from `GET /criteria`. The frontend dropdown is filled from `GET /criteria`.
+4. Restart the server. The frontend dropdown is filled from `GET /criteria`.
 
 ### Adding New Features
 
@@ -161,16 +174,17 @@ Each design term (e.g. Visual Harmony) has its own trained model. To add another
 
 ### Dataset Structure
 
-One folder per vocabulary; each has `class_0` (less) and `class_1` (more):
+One folder per vocabulary under `dataset/<vocabulary_id>/`, each with `class_0` (less) and `class_1` (more). The training script reads from `dataset/<vocabulary_id>/` (e.g. `dataset/visual_balance/`).
 
 ```
 dataset/
-├── visual_balance/
-│   ├── class_0/  # Less [criterion] (PNG files)
-│   └── class_1/  # More [criterion] (PNG files)
-└── visual_harmony/   # When you add this vocabulary
-    ├── class_0/
-    └── class_1/
+├── visual_balance/             # Used by: python train_and_save_model.py visual_balance
+│   ├── class_0/                 # Less [criterion] (PNG files)
+│   └── class_1/                 # More [criterion]
+├── balance/Bob's classes/       # Legacy; can mirror to visual_balance or other id
+│   ├── class_0/
+│   └── class_1/
+└── test_images/                 # Optional test images
 ```
 
 ## Credits

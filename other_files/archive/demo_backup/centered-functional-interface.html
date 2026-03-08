@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asymmetrical Balance Composer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            justify-content: center;
+            height: 100%;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+        .canvas-section {
+            flex: 0 0 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-right: 40px;
+        }
+        .right-section {
+            flex: 0 0 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        .prompt {
+            width: 500px;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.6;
+            color: #333;
+            font-size: 16px;
+        }
+        .canvas-container {
+            width: 500px;
+            height: 500px;
+            background-color: white;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+        #drawingCanvas {
+            cursor: crosshair;
+        }
+        .controls {
+            width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .color-palette {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .button {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .instructions {
+            width: 500px;
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+        .analyze-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            align-self: flex-start;
+            margin-bottom: 20px;
+        }
+        .score-section {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .because-section {
+            margin-bottom: 20px;
+        }
+        .suggestion-section {
+            flex: 1;
+        }
+        .suggestion-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .suggestion-grid {
+            display: flex;
+            gap: 10px;
+        }
+        .suggestion-box {
+            flex: 1;
+            aspect-ratio: 1;
+            background-color: #ddd;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="canvas-section">
+            <div class="prompt">
+                Create 2-5 blocks in varying sizes and shades of grey.
+                Arrange them to achieve asymmetrical balance, either
+                spaced apart or overlapping.
+            </div>
+            
+            <div class="canvas-container">
+                <canvas id="drawingCanvas" width="500" height="500"></canvas>
+            </div>
+            
+            <div class="controls">
+                <div class="color-palette">
+                    <div class="color-option" style="background-color: #D9D9D9;" onclick="setColor('#D9D9D9')"></div>
+                    <div class="color-option" style="background-color: #9C9C9C;" onclick="setColor('#9C9C9C')"></div>
+                    <div class="color-option" style="background-color: #535353;" onclick="setColor('#535353')"></div>
+                    <div class="color-option" style="background-color: #323131;" onclick="setColor('#323131')"></div>
+                    <div class="color-option" style="background-color: #000000;" onclick="setColor('#000000')"></div>
+                </div>
+                
+                <div class="button-group">
+                    <button class="button" onclick="undoLastAction()">Go Back</button>
+                    <button class="button" onclick="clearCanvas()">Clear Canvas</button>
+                    <button class="button" onclick="exportImage()">Export</button>
+                </div>
+            </div>
+            
+            <div class="instructions">
+                Click and drag to draw rectangles. Drag existing rectangles to move them.
+            </div>
+        </div>
+        
+        <div class="right-section">
+            <button class="analyze-button" onclick="startAnalysis()">Analyze</button>
+            
+            <div class="score-section hidden">
+                You got a score of: <span id="scoreValue"></span>
+            </div>
+            
+            <div class="because-section hidden">
+                because
+                <ol>
+                    <li class="hidden">First reason</li>
+                    <li class="hidden">Second reason</li>
+                    <li class="hidden">Third reason</li>
+                </ol>
+            </div>
+            
+            <div class="suggestion-section hidden">
+                <div class="suggestion-title">Here are a few suggestions to help improve it!</div>
+                <div class="suggestion-grid">
+                    <div class="suggestion-box"></div>
+                    <div class="suggestion-box"></div>
+                    <div class="suggestion-box"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        const GRID_SIZE = 10;
+        const COLORS = ['#D9D9D9', '#9C9C9C', '#535353', '#323131', '#000000'];
+        let currentColor = COLORS[0];
+        let rectangles = [];
+        let isDrawing = false;
+        let isDragging = false;
+        let startX, startY, selectedRect;
+        let analysisStep = 0;
+        
+        function setColor(color) {
+            currentColor = color;
+        }
+
+        function undoLastAction() {
+            rectangles.pop();
+            redrawCanvas();
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            rectangles = [];
+        }
+
+        function generateRandomScore() {
+            return Math.floor(Math.random() * 31) + 70;
+        }
+
+        function startAnalysis() {
+            analysisStep = 1;
+            document.querySelector('.score-section').classList.remove('hidden');
+            document.getElementById('scoreValue').textContent = '...';
+        }
+
+        function nextAnalysisStep() {
+            switch(analysisStep) {
+                case 1:
+                    document.getElementById('scoreValue').textContent = generateRandomScore();
+                    break;
+                case 2:
+                    document.querySelector('.because-section').classList.remove('hidden');
+                    break;
+                case 3:
+                case 4:
+                case 5:
+                    document.querySelector(`.because-section ol li:nth-child(${analysisStep - 2})`).classList.remove('hidden');
+                    break;
+                case 6:
+                    document.querySelector('.suggestion-section').classList.remove('hidden');
+                    break;
+                default:
+                    return;
+            }
+            analysisStep++;
+        }
+
+        function exportImage() {
+            html2canvas(canvas).then(canvas => {
+                const resizedCanvas = document.createElement('canvas');
+                const resizedCtx = resizedCanvas.getContext('2d');
+                resizedCanvas.width = 100;
+                resizedCanvas.height = 100;
+                
+                resizedCtx.drawImage(canvas, 0, 0, 100, 100);
+                
+                const link = document.createElement('a');
+                link.download = 'asymmetrical-composition.png';
+                link.href = resizedCanvas.toDataURL();
+                link.click();
+            });
+        }
+
+        function redrawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            rectangles.forEach(rect => {
+                ctx.fillStyle = rect.color;
+                ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+            });
+        }
+
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const pos = getMousePos(canvas, e);
+            selectedRect = rectangles.find(r => 
+                pos.x >= r.x && pos.x <= r.x + r.width && 
+                pos.y >= r.y && pos.y <= r.y + r.height
+            );
+
+            if (selectedRect) {
+                isDragging = true;
+                startX = pos.x - selectedRect.x;
+                startY = pos.y - selectedRect.y;
+            } else {
+                isDrawing = true;
+                startX = pos.x;
+                startY = pos.y;
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const pos = getMousePos(canvas, e);
+
+            if (isDragging && selectedRect) {
+                selectedRect.x = pos.x - startX;
+                selectedRect.y = pos.y - startY;
+                redrawCanvas();
+            } else if (isDrawing) {
+                redrawCanvas();
+                ctx.fillStyle = currentColor;
+                ctx.fillRect(
+                    Math.min(startX, pos.x),
+                    Math.min(startY, pos.y),
+                    Math.abs(pos.x - startX),
+                    Math.abs(pos.y - startY)
+                );
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (isDrawing) {
+                const pos = getMousePos(canvas, e);
+                rectangles.push({
+                    x: Math.min(startX, pos.x),
+                    y: Math.min(startY, pos.y),
+                    width: Math.abs(pos.x - startX),
+                    height: Math.abs(pos.y - startY),
+                    color: currentColor
+                });
+            }
+            isDrawing = false;
+            isDragging = false;
+            selectedRect = null;
+            redrawCanvas();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'n') {
+                nextAnalysisStep();
+            }
+        });
+    </script>
+</body>
+</html>

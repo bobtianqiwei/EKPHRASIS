@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asymmetrical Balance Composer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .prompt {
+            width: 400px;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.6;
+            color: #333;
+            font-size: 16px;
+        }
+        .canvas-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #drawingCanvas {
+            background-color: white;
+            cursor: crosshair;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        .color-palette {
+            display: flex;
+            gap: 10px;
+        }
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .button {
+            background: none;
+            border: 1px solid #666;
+            color: #666;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .button:hover {
+            background-color: #666;
+            color: white;
+        }
+        .instructions {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="prompt">
+            Create 2-5 blocks in varying sizes and shades of grey. Arrange them to achieve asymmetrical balance, either spaced apart or overlapping.
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="drawingCanvas" width="400" height="400"></canvas>
+        </div>
+        
+        <div class="controls">
+            <div class="color-palette">
+                <div class="color-option" style="background-color: #D9D9D9;" onclick="setColor('#D9D9D9')"></div>
+                <div class="color-option" style="background-color: #9C9C9C;" onclick="setColor('#9C9C9C')"></div>
+                <div class="color-option" style="background-color: #535353;" onclick="setColor('#535353')"></div>
+                <div class="color-option" style="background-color: #323131;" onclick="setColor('#323131')"></div>
+                <div class="color-option" style="background-color: #000000;" onclick="setColor('#000000')"></div>
+            </div>
+            
+            <div class="button-group">
+                <button class="button" onclick="undoLastAction()">Go Back</button>
+                <button class="button" onclick="clearCanvas()">Clear Canvas</button>
+                <button class="button" onclick="exportImage()">Export</button>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            Click and drag to draw rectangles.
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let startX, startY;
+        let currentColor = '#D9D9D9';
+        let canvasHistory = [];
+        let currentStep = -1;
+        const GRID_SIZE = 10; // Define grid size
+
+        function snapToGrid(value) {
+            return Math.round(value / GRID_SIZE) * GRID_SIZE;
+        }
+
+        function setColor(color) {
+            currentColor = color;
+        }
+
+        function clearCanvas() {
+            saveCanvasState();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function undoLastAction() {
+            if (currentStep > 0) {
+                currentStep--;
+                const previousState = canvasHistory[currentStep];
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (previousState) {
+                    ctx.putImageData(previousState, 0, 0);
+                }
+            }
+        }
+
+        function saveCanvasState() {
+            currentStep++;
+            if (currentStep < canvasHistory.length) {
+                canvasHistory.length = currentStep;
+            }
+            canvasHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        }
+
+        function drawRect(startX, startY, endX, endY) {
+            // Snap all coordinates to grid
+            const x1 = snapToGrid(startX);
+            const y1 = snapToGrid(startY);
+            const x2 = snapToGrid(endX);
+            const y2 = snapToGrid(endY);
+
+            // Calculate width and height
+            const width = Math.abs(x2 - x1);
+            const height = Math.abs(y2 - y1);
+
+            // Only draw if both width and height are at least one grid unit
+            if (width >= GRID_SIZE && height >= GRID_SIZE) {
+                ctx.fillStyle = currentColor;
+                ctx.fillRect(
+                    Math.min(x1, x2),
+                    Math.min(y1, y2),
+                    width,
+                    height
+                );
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+            
+            // Clear and redraw
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Draw preview rectangle
+            drawRect(startX, startY, currentX, currentY);
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (isDrawing) {
+                saveCanvasState();
+                isDrawing = false;
+            }
+        });
+
+        function exportImage() {
+            html2canvas(canvas).then(canvas => {
+                const resizedCanvas = document.createElement('canvas');
+                const resizedCtx = resizedCanvas.getContext('2d');
+                resizedCanvas.width = 100;
+                resizedCanvas.height = 100;
+                
+                resizedCtx.drawImage(canvas, 0, 0, 100, 100);
+                
+                const link = document.createElement('a');
+                link.download = 'asymmetrical-composition.png';
+                link.href = resizedCanvas.toDataURL();
+                link.click();
+            });
+        }
+
+        // Initialize canvas history
+        saveCanvasState();
+    </script>
+</body>
+</html>

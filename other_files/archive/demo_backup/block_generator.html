@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asymmetrical Balance Composer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .prompt {
+            width: 400px;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.6;
+            color: #333;
+            font-size: 16px;
+        }
+        .canvas-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #drawingCanvas {
+            background-color: white;
+        }
+        .instructions {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="prompt">
+            Press 2-5 to generate random compositions. 
+            Press F to refresh, E to export.
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="drawingCanvas" width="400" height="400"></canvas>
+        </div>
+        
+        <div class="instructions">
+            The composition will automatically generate based on your key press.
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        const GRID_SIZE = 10;
+        const COLORS = ['#D9D9D9', '#9C9C9C', '#535353', '#323131', '#000000'];
+        
+        function snapToGrid(value) {
+            return Math.round(value / GRID_SIZE) * GRID_SIZE;
+        }
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function getRandomColor() {
+            const usedColors = new Set();
+            return function() {
+                let availableColors = COLORS.filter(color => !usedColors.has(color));
+                if (availableColors.length === 0) {
+                    usedColors.clear();
+                    availableColors = COLORS;
+                }
+                const color = availableColors[Math.floor(Math.random() * availableColors.length)];
+                usedColors.add(color);
+                return color;
+            };
+        }
+
+        function generateRandomRectangle() {
+            const minSize = 2; // Minimum 20px (2 grid units)
+            const maxSize = 20; // Maximum 200px (20 grid units)
+            
+            // Generate dimensions in grid units
+            const width = getRandomInt(minSize, maxSize) * GRID_SIZE;
+            const height = getRandomInt(minSize, maxSize) * GRID_SIZE;
+            
+            // Calculate maximum possible x and y while keeping rectangle inside canvas
+            const maxX = canvas.width - width;
+            const maxY = canvas.height - height;
+            
+            // Generate position in grid units
+            const x = snapToGrid(getRandomInt(0, maxX));
+            const y = snapToGrid(getRandomInt(0, maxY));
+            
+            return {x, y, width, height};
+        }
+
+        function drawComposition(numRectangles) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const getNextColor = getRandomColor();
+            
+            for (let i = 0; i < numRectangles; i++) {
+                const rect = generateRandomRectangle();
+                ctx.fillStyle = getNextColor();
+                ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+            }
+        }
+
+        function exportImage() {
+            html2canvas(canvas).then(canvas => {
+                const resizedCanvas = document.createElement('canvas');
+                const resizedCtx = resizedCanvas.getContext('2d');
+                resizedCanvas.width = 100;
+                resizedCanvas.height = 100;
+                
+                resizedCtx.drawImage(canvas, 0, 0, 100, 100);
+                
+                const link = document.createElement('a');
+                link.download = 'asymmetrical-composition.png';
+                link.href = resizedCanvas.toDataURL();
+                link.click();
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            
+            if (['2', '3', '4', '5'].includes(key)) {
+                drawComposition(parseInt(key));
+            } else if (key === 'f') {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            } else if (key === 'e') {
+                exportImage();
+            }
+        });
+    </script>
+</body>
+</html>
