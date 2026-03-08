@@ -515,13 +515,16 @@
         .chess-message-area.empty { visibility: hidden; }
         #testModelSection { display: none; padding: 24px; max-width: 100%; width: 100%; box-sizing: border-box; margin: 0; overflow-y: auto; min-width: 0; }
         #testModelSection.show { display: block; }
-        .test-model-upload { margin-bottom: 24px; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
-        .test-model-upload input[type="file"] { font-size: 14px; max-width: 250px; }
+        .test-model-upload { margin-bottom: 24px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .test-model-upload .test-model-btn,
+        .test-model-upload input[type="file"].test-model-btn { padding: 4px 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 8px; min-height: 26px; box-sizing: border-box; background: #fff; color: #333; cursor: pointer; }
+        .test-model-upload .test-model-btn:hover { background: #f5f5f5; }
+        .test-model-upload .test-model-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .test-model-upload input[type="file"].test-model-btn { max-width: 180px; font-family: inherit; }
         .test-model-results { display: grid; grid-template-columns: repeat(auto-fill, 160px); gap: 16px; justify-content: center; width: 100%; box-sizing: border-box; }
-        .test-model-card { width: 160px; height: 160px; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; background: #f5f5f5; position: relative; display: flex; flex-direction: column; }
+        .test-model-card { width: 160px; border: 1px solid #ccc; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
         .test-model-card img { display: block; width: 160px; height: 160px; object-fit: contain; background: #f5f5f5; }
-        .test-model-card .score { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 8px; font-size: 13px; font-weight: 600; color: #333; background: rgba(255,255,255,0.95); border-top: 1px solid #eee; }
-        .test-model-card .score span { color: #666; font-weight: 400; font-size: 11px; }
+        .test-model-card .score { padding: 4px 0 0; font-size: 12px; color: #888; }
         .test-model-error { color: #c00; padding: 12px; }
         .criterion-label {
             font-size: 14px;
@@ -787,10 +790,9 @@
             </div>
             <div id="testModelSection">
                 <div class="test-model-upload">
-                    <input type="file" id="testModelFileInput" accept="image/*" multiple>
-                    <button type="button" class="button" id="testModelRunBtn">Run selected</button>
-                    <span style="color: #ccc;">|</span>
-                    <button type="button" class="button" id="testModelDatasetBtn">Run dataset/test_images</button>
+                    <input type="file" id="testModelFileInput" class="test-model-btn" accept="image/*" multiple>
+                    <button type="button" class="test-model-btn" id="testModelRunBtn">Run selected</button>
+                    <button type="button" class="test-model-btn" id="testModelDatasetBtn">Run dataset/test_images</button>
                 </div>
                 <div id="testModelError" class="test-model-error" style="display: none; text-align: center;"></div>
                 <div id="testModelResults" class="test-model-results"></div>
@@ -1167,9 +1169,9 @@ document.getElementById('testModelRunBtn').addEventListener('click', async funct
                 const pct = (r.confidence * 100).toFixed(1);
                 const cls = r.class || (r.confidence >= 0.5 ? 'class_1' : 'class_0');
                 const clsLabel = cls === 'class_1' ? 'More' : 'Less';
-                label = pct + '% ' + cls + ' <span>(' + clsLabel + ')</span>';
+                label = pct + '% ' + clsLabel;
             }
-            scoreEl.innerHTML = label;
+            scoreEl.textContent = label;
             card.appendChild(img);
             card.appendChild(scoreEl);
             resultsEl.appendChild(card);
@@ -1227,9 +1229,9 @@ document.getElementById('testModelDatasetBtn').addEventListener('click', async f
                 const pct = (r.confidence * 100).toFixed(1);
                 const cls = r.class || (r.confidence >= 0.5 ? 'class_1' : 'class_0');
                 const clsLabel = cls === 'class_1' ? 'More' : 'Less';
-                label = pct + '% ' + cls + ' <span>(' + clsLabel + ')</span>';
+                label = pct + '% ' + clsLabel;
             }
-            scoreEl.innerHTML = label;
+            scoreEl.textContent = label;
             card.appendChild(img);
             card.appendChild(scoreEl);
             resultsEl.appendChild(card);
