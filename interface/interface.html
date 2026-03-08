@@ -126,6 +126,25 @@
             margin-top: 6px;
             color: #333;
         }
+        .criterion-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .criterion-label {
+            font-size: 14px;
+            color: #333;
+        }
+        .criterion-select {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
+            min-width: 160px;
+        }
         .evaluate-button {
         display: block;
         margin: 20px auto;
@@ -242,6 +261,12 @@
             </div>
             
             <div class="server-status" id="serverStatus"></div>
+            <div class="criterion-row">
+                <label for="criterionSelect" class="criterion-label">Practice vocabulary:</label>
+                <select id="criterionSelect" class="criterion-select">
+                    <option value="visual_harmony">Visual Harmony</option>
+                </select>
+            </div>
             <button class="evaluate-button" id="evaluateBtn">Generate visual aids</button>
             
             <div class="loading" id="loadingDiv">
@@ -277,8 +302,8 @@ let currentColor = '#D9D9D9'; // Default color
 // Same-origin when served from backend (http://localhost:5001/); else explicit URL for file://
 const API_BASE = (window.location.hostname === 'localhost' && window.location.port === '5001') ? '' : 'http://localhost:5001';
 
-// Criterion name for "Less X" / "More X" labels (e.g. "Visual Harmony"; can change later)
-const CRITERION_NAME = 'Visual Harmony';
+// Design vocabularies: loaded from API (GET /criteria), fallback if server offline
+let CRITERIA_LIST = [{ id: 'visual_harmony', name: 'Visual Harmony' }];
 
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
@@ -287,15 +312,35 @@ const loadingDiv = document.querySelector('#loadingDiv');
 const scoreDisplay = document.querySelector('#scoreDisplay');
 const evaluateBtn = document.querySelector('#evaluateBtn');
 const serverStatusEl = document.getElementById('serverStatus');
+const criterionSelect = document.getElementById('criterionSelect');
 
 // Initially hide the feedback message
 feedback.style.display = 'none';
 
-// Set all "X" labels from CRITERION_NAME (change CRITERION_NAME to switch criterion)
-['criterionNameSlot', 'criterionNameSlot2', 'criterionNameLess', 'criterionNameMore'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = CRITERION_NAME;
-});
+function updateCriterionLabels() {
+    const opt = criterionSelect.selectedOptions[0];
+    const name = opt ? opt.textContent : 'Visual Harmony';
+    ['criterionNameSlot', 'criterionNameSlot2', 'criterionNameLess', 'criterionNameMore'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = name;
+    });
+}
+
+function populateCriterionDropdown() {
+    fetch(API_BASE + '/criteria', { method: 'GET' })
+        .then(r => r.json())
+        .then(list => {
+            CRITERIA_LIST = list.length ? list : CRITERIA_LIST;
+            criterionSelect.innerHTML = CRITERIA_LIST.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            updateCriterionLabels();
+        })
+        .catch(() => {
+            criterionSelect.innerHTML = CRITERIA_LIST.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            updateCriterionLabels();
+        });
+}
+criterionSelect.addEventListener('change', updateCriterionLabels);
+populateCriterionDropdown();
 
 // Check backend on load and show clear instructions if not running
 function checkServer() {
@@ -454,7 +499,8 @@ function addBlockToPage() {
         rightImg.src = window._lastMoreDataUrl;
         rightImg.style.display = 'block';
     } else {
-        alert('Generate visual aids first to see less and more ' + CRITERION_NAME.toLowerCase() + ' here.');
+        const name = criterionSelect.selectedOptions[0] ? criterionSelect.selectedOptions[0].textContent : 'visual harmony';
+        alert('Generate visual aids first to see less and more ' + name.toLowerCase() + ' here.');
     }
 }
 
@@ -558,13 +604,14 @@ async function evaluateWithAI() {
         // Convert variations to base64 images
         const images = variations.map(variation => generateImageAsBase64(variation));
 
-        // Send to ML model server
+        // Send to ML model server (criterion = selected vocabulary, e.g. visual_harmony)
+        const criterion = criterionSelect.value;
         const response = await fetch(API_BASE + '/predict_multiple', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ images: images })
+            body: JSON.stringify({ criterion: criterion, images: images })
         });
 
         if (!response.ok) {

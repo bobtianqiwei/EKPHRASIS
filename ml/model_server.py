@@ -15,21 +15,30 @@ CORS(app)  # Enable CORS for all routes
 # Serve frontend from project interface/ folder (so user opens http://localhost:5001/)
 INTERFACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'interface')
 
-# Load the trained model
-# Note: You'll need to save your trained model first
-# model.save('composition_model.h5')
-try:
-    model = load_model('composition_model.h5')
-    print("Model loaded successfully")
-except:
-    print("Warning: Model file not found. Please train and save the model first.")
-    model = None
+# Each design vocabulary has its own model. Add new entries when you train new models.
+# model_file is relative to the ml/ directory.
+CRITERIA = [
+    {'id': 'visual_harmony', 'name': 'Visual Harmony', 'model_file': 'composition_model.h5'},
+    # Example for future: {'id': 'balance', 'name': 'Balance', 'model_file': 'balance_model.h5'},
+]
 
-def predict_image_from_base64(base64_string):
+# Load all criterion models at startup (criterion_id -> Keras model)
+models = {}
+for c in CRITERIA:
+    try:
+        models[c['id']] = load_model(c['model_file'])
+        print(f"Model loaded for criterion: {c['name']} ({c['model_file']})")
+    except Exception as e:
+        print(f"Warning: Could not load {c['model_file']} for '{c['name']}': {e}")
+
+# Legacy single-model reference for /health (any loaded model counts as "ready")
+model = models.get('visual_harmony') or (list(models.values())[0] if models else None)
+
+def predict_image_from_base64(base64_string, model_obj):
     """
     Predict the composition score from a base64 encoded image
     """
-    if model is None:
+    if model_obj is None:
         return {"error": "Model not loaded"}
     
     try:
@@ -50,7 +59,7 @@ def predict_image_from_base64(base64_string):
         img_array /= 255.0
         
         # Make prediction
-        prediction = model.predict(img_array)
+        prediction = model_obj.predict(img_array)
         confidence = float(prediction[0][0])
         
         return {
@@ -73,28 +82,42 @@ def predict():
         if 'image' not in data:
             return jsonify({"error": "No image data provided"}), 400
         
-        result = predict_image_from_base64(data['image'])
+        criterion = data.get('criterion', 'visual_harmony')
+        model_obj = models.get(criterion)
+        if not model_obj:
+            return jsonify({"error": f"Unknown criterion or model not loaded: {criterion}"}), 400
+        result = predict_image_from_base64(data['image'], model_obj)
         return jsonify(result)
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/criteria', methods=['GET'])
+def list_criteria():
+    """Return list of design vocabularies (id, name) for the dropdown."""
+    return jsonify([{'id': c['id'], 'name': c['name']} for c in CRITERIA if c['id'] in models])
+
 @app.route('/predict_multiple', methods=['POST'])
 def predict_multiple():
     """
-    API endpoint to predict multiple images and return best/worst scores
-    Expects JSON with 'images' array containing base64 encoded images
+    API endpoint to predict multiple images and return best/worst scores.
+    Expects JSON with 'images' (base64 array) and optional 'criterion' (e.g. 'visual_harmony').
     """
     try:
         data = request.get_json()
         if 'images' not in data:
             return jsonify({"error": "No images data provided"}), 400
         
+        criterion = data.get('criterion', 'visual_harmony')
+        model_obj = models.get(criterion)
+        if not model_obj:
+            return jsonify({"error": f"Unknown criterion or model not loaded: {criterion}"}), 400
+        
         images = data['images']
         results = []
         
         for i, img_base64 in enumerate(images):
-            result = predict_image_from_base64(img_base64)
+            result = predict_image_from_base64(img_base64, model_obj)
             if 'error' not in result:
                 result['index'] = i
                 results.append(result)

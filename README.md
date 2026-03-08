@@ -144,6 +144,16 @@ python test_system.py
 
 ## Development
 
+### Adding a new design vocabulary (new model)
+
+Each design term (e.g. Visual Harmony) has its own trained model. To add another:
+
+1. **Train a model** for the new term (e.g. “Balance”): prepare a dataset with `class_0` (less) and `class_1` (more), duplicate or adapt `ml/train_and_save_model.py` to save e.g. `balance_model.h5` in the `ml/` directory.
+2. **Register the criterion** in `ml/model_server.py`: add an entry to the `CRITERIA` list, e.g. `{'id': 'balance', 'name': 'Balance', 'model_file': 'balance_model.h5'}`.
+3. Restart the server. The dropdown will load options from `GET /criteria` (only criteria whose model file loaded successfully appear).
+
+The frontend dropdown is filled from the backend; no frontend change is required when you add a new criterion.
+
 ### Adding New Features
 
 1. **Frontend**: Modify `interface/interface.html`
