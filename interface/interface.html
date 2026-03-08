@@ -344,6 +344,26 @@
         .modal-variation-params .modal-variation-desc { font-size: 13px; color: #666; margin-bottom: 10px; line-height: 1.4; }
         .modal-variation-params label { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
         .modal-variation-params input[type="number"] { width: 56px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
+        .modal-chess-target { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee; font-size: 14px; }
+        .modal-chess-target .modal-variation-title { font-weight: 600; color: #111; margin-bottom: 4px; }
+        .modal-chess-target .modal-variation-desc { font-size: 13px; color: #666; margin-bottom: 10px; line-height: 1.4; }
+        .modal-chess-target label { display: inline-flex; align-items: center; gap: 6px; }
+        .modal-chess-target input[type="number"] { width: 56px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
+        .chess-control { display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .chess-control label { font-size: 14px; color: #333; }
+        .chess-control select { padding: 4px 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 5px; background: #fff; min-width: 120px; }
+        .chess-message-area {
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 14px;
+            color: #333;
+            padding: 8px 16px;
+            box-sizing: border-box;
+        }
+        .chess-message-area.empty { visibility: hidden; }
         .criterion-label {
             font-size: 14px;
             color: #333;
@@ -357,6 +377,7 @@
             min-width: 160px;
         }
         .action-row {
+            height: 52px;
             min-height: 52px;
             display: flex;
             flex-direction: column;
@@ -464,6 +485,11 @@
                     <label>Position &plusmn; <input type="number" id="variationPositionPx" min="1" max="200" value="25" title="Max position offset in pixels"> px</label>
                     <label>Scale <input type="number" id="variationScaleMin" min="10" max="100" value="80" title="Min scale %">% &ndash; <input type="number" id="variationScaleMax" min="50" max="200" value="120" title="Max scale %">%</label>
                 </div>
+                <div class="modal-chess-target">
+                    <div class="modal-variation-title">Chess mode</div>
+                    <div class="modal-variation-desc">When the model score reaches this percentage, the game shows the goal-reached message.</div>
+                    <label>Target score <input type="number" id="chessTargetScorePct" min="1" max="100" value="63.9" step="0.1" title="Target score %">%</label>
+                </div>
             </div>
         </div>
         <div id="aboutModalOverlay" class="about-modal-overlay">
@@ -479,7 +505,8 @@
             <div class="upper-section">
                 <div class="prompt">
                     Create a composition with blocks in varying sizes and shades of grey.<br>
-                    Arrange them to achieve <strong id="promptCriterionName">Visual Harmony</strong>, either spaced apart or overlapping.
+                    Arrange them to achieve <strong id="promptCriterionName">Visual Harmony</strong>, either spaced apart or overlapping.<br>
+                    <span class="prompt-chess-only" id="chessPromptLine" style="display: none;">You draw one, then the computer draws one, until you reach <span id="chessPromptCriterion">Visual Harmony</span>.</span>
                 </div>
 
                 <div class="controls">
@@ -519,6 +546,8 @@
                     <div class="preview-label" id="rightSlotLabel">More <span id="criterionNameSlot2">Visual Harmony</span><span id="rightSlotScore"></span></div>
                 </div>
             </div>
+
+            <div class="chess-message-area empty" id="chessMessageArea" aria-live="polite"></div>
             
             <div class="action-row" id="actionRow">
                 <button class="evaluate-button" id="evaluateBtn">
@@ -528,6 +557,14 @@
                         <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
                     </span>
                 </button>
+                <div class="chess-control" id="chessControl" style="display: none;">
+                    <label for="chessStrategySelect">Computer:</label>
+                    <select id="chessStrategySelect">
+                        <option value="help">Help</option>
+                        <option value="oppose">Oppose</option>
+                        <option value="random">Random</option>
+                    </select>
+                </div>
             </div>
             
             <div class="score-display" id="scoreDisplay" style="display: none;">
@@ -648,15 +685,30 @@ aboutModalOverlay.addEventListener('click', function (e) {
     if (e.target === aboutModalOverlay) aboutModalOverlay.classList.remove('show');
 });
 
-// Mode: Canvas (no generate button), Visual aids (full), Chess (copy of current for now)
-// Use visibility so the action row keeps fixed height and content doesn't shift
+// Mode: Canvas (hide row), Visual aids (generate button), Chess (strategy dropdown). Message area always in layout (fixed height) so content above does not shift.
 function applyMode() {
     const actionRow = document.getElementById('actionRow');
+    const evaluateBtnEl = document.getElementById('evaluateBtn');
+    const chessControlEl = document.getElementById('chessControl');
+    const chessMessageEl = document.getElementById('chessMessageArea');
+    const chessPromptEl = document.getElementById('chessPromptLine');
     const mode = modeSelect.value;
     if (mode === 'canvas') {
         actionRow.style.visibility = 'hidden';
+        if (chessMessageEl) setChessMessage('');
+        if (chessPromptEl) chessPromptEl.style.display = 'none';
     } else {
         actionRow.style.visibility = 'visible';
+        if (mode === 'chess') {
+            evaluateBtnEl.style.display = 'none';
+            chessControlEl.style.display = 'flex';
+            if (chessPromptEl) chessPromptEl.style.display = 'inline';
+        } else {
+            evaluateBtnEl.style.display = '';
+            chessControlEl.style.display = 'none';
+            if (chessMessageEl) setChessMessage('');
+            if (chessPromptEl) chessPromptEl.style.display = 'none';
+        }
     }
 }
 modeSelect.addEventListener('change', applyMode);
@@ -684,7 +736,7 @@ feedback.style.display = 'none';
 function updateCriterionLabels() {
     const opt = criterionSelect.selectedOptions[0];
     const name = opt ? opt.textContent : 'Visual Harmony';
-    ['criterionNameSlot', 'criterionNameSlot2', 'criterionNameLess', 'criterionNameMore', 'promptCriterionName'].forEach(id => {
+    ['criterionNameSlot', 'criterionNameSlot2', 'criterionNameLess', 'criterionNameMore', 'promptCriterionName', 'chessPromptCriterion'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = name;
     });
@@ -745,6 +797,117 @@ checkServer();
 
 // Define grey color palette
 const greyColors = ['#D9D9D9', '#9C9C9C', '#535353', '#323131', '#000000'];
+
+// Chess mode: block input while computer is adding its block
+let chessComputerThinking = false;
+
+function getChessTargetScore() {
+    const el = document.getElementById('chessTargetScorePct');
+    const n = el ? parseFloat(el.value) : 63.9;
+    return (isNaN(n) || n < 1 || n > 100 ? 63.9 : n) / 100;
+}
+
+function setChessMessage(text) {
+    const el = document.getElementById('chessMessageArea');
+    if (!el) return;
+    el.textContent = text || '';
+    if (text) el.classList.remove('empty'); else el.classList.add('empty');
+}
+
+function generateRandomBlock() {
+    const minSize = 30;
+    const maxSize = 120;
+    const randomX = Math.random() * (canvas.width - minSize);
+    const randomY = Math.random() * (canvas.height - minSize);
+    const randomWidth = minSize + Math.random() * (maxSize - minSize);
+    const randomHeight = minSize + Math.random() * (maxSize - minSize);
+    const block = {
+        x: Math.max(0, Math.min(canvas.width - randomWidth, randomX)),
+        y: Math.max(0, Math.min(canvas.height - randomHeight, randomY)),
+        width: randomWidth,
+        height: randomHeight,
+        color: greyColors[Math.floor(Math.random() * greyColors.length)],
+        corners: null
+    };
+    block.corners = calculateCorners(block);
+    return block;
+}
+
+function chessRunModel() {
+    const criterion = criterionSelect.value;
+    const image = generateImageAsBase64(rectangles);
+    return fetch(API_BASE + '/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ criterion: criterion, image: image })
+    }).then(r => r.json()).then(data => {
+        if (data.error) throw new Error(data.error);
+        return data.confidence;
+    });
+}
+
+function showChessGoalReached(score) {
+    const name = criterionSelect.selectedOptions[0] ? criterionSelect.selectedOptions[0].textContent : 'the goal';
+    let msg = 'You seem to have reached ' + name + '. What do you think?';
+    if (showModelScores && score != null) msg += ' (' + (score * 100).toFixed(1) + '%)';
+    setChessMessage(msg);
+}
+
+async function scheduleChessAfterUserMove() {
+    if (modeSelect.value !== 'chess') return;
+    setChessMessage('Checking...');
+    try {
+        const score = await chessRunModel();
+        if (score >= getChessTargetScore()) {
+            showChessGoalReached(score);
+            return;
+        }
+        if (showModelScores) setChessMessage('Score: ' + (score * 100).toFixed(1) + '%');
+        await computerTurn();
+    } catch (e) {
+        setChessMessage('Error: ' + (e.message || 'Could not reach ML server.'));
+    }
+}
+
+async function computerTurn() {
+    chessComputerThinking = true;
+    setChessMessage('Computer is thinking...');
+    const strategy = (document.getElementById('chessStrategySelect') || {}).value || 'random';
+    try {
+        if (strategy === 'random') {
+            const block = generateRandomBlock();
+            rectangles.push(block);
+            renderRectangles();
+        } else {
+            const candidateBlocks = [];
+            for (let i = 0; i < 20; i++) candidateBlocks.push(generateRandomBlock());
+            const images = candidateBlocks.map(block => generateImageAsBase64([...rectangles, block]));
+            const criterion = criterionSelect.value;
+            const res = await fetch(API_BASE + '/predict_multiple', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ criterion: criterion, images: images })
+            }).then(r => r.json());
+            if (res.error) throw new Error(res.error);
+            const idx = strategy === 'help' ? res.best.index : res.worst.index;
+            const chosen = candidateBlocks[idx];
+            rectangles.push(chosen);
+            renderRectangles();
+        }
+        const score = await chessRunModel();
+        if (score >= getChessTargetScore()) {
+            showChessGoalReached(score);
+        } else if (showModelScores) {
+            setChessMessage('Score: ' + (score * 100).toFixed(1) + '%');
+        } else {
+            setChessMessage('');
+        }
+    } catch (e) {
+        setChessMessage('Error: ' + (e.message || 'Could not reach ML server.'));
+    } finally {
+        chessComputerThinking = false;
+    }
+}
 
 // Set current color when clicking color palette
 function setColor(color) {
@@ -870,6 +1033,7 @@ function addRandomRectangle() {
     randomRectangle.corners = calculateCorners(randomRectangle);
     rectangles.push(randomRectangle);
     renderRectangles();
+    if (modeSelect.value === 'chess') setTimeout(scheduleChessAfterUserMove, 0);
 }
 
 // Show last evaluated less/more in the left/right slots. Press 'b' to show again.
@@ -891,6 +1055,7 @@ function addBlockToPage() {
 
 // Start drawing or dragging
 function startDrawingOrDragging(e) {
+    if (chessComputerThinking) return;
     startX = e.clientX - canvas.getBoundingClientRect().left;
     startY = e.clientY - canvas.getBoundingClientRect().top;
 
@@ -947,8 +1112,17 @@ function endDrawingOrDragging() {
     if (isDrawing || isDragging) {
         currentRectangle.corners = calculateCorners(currentRectangle);
     }
+    const wasDrawing = isDrawing;
+    const hadNewBlock = wasDrawing && currentRectangle && (currentRectangle.width !== 0 || currentRectangle.height !== 0);
+    if (wasDrawing && !hadNewBlock && currentRectangle) {
+        rectangles.pop();
+        renderRectangles();
+    }
     isDrawing = false;
     isDragging = false;
+    if (hadNewBlock && modeSelect.value === 'chess') {
+        setTimeout(scheduleChessAfterUserMove, 0);
+    }
 }
 
 // Render all rectangles
@@ -964,6 +1138,7 @@ function renderRectangles() {
 function clearCanvas() {
     rectangles = [];
     renderRectangles();
+    if (modeSelect.value === 'chess') setChessMessage('');
 }
 
 // Generate visual aids (run model, show less/more examples)
