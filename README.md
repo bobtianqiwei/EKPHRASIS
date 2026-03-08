@@ -126,10 +126,10 @@ to start the server and open the interface automatically.
 
 ## Model Details
 
-- **Architecture**: VGG16 + custom classification layers
-- **Input**: 224x224 RGB images
-- **Output**: Confidence score (0-1) for harmony
-- **Training**: Binary classification on composition dataset
+- **Architecture**: Modified VGG16 (pre-trained backbone + custom classification head). See Simonyan & Zisserman, [*Very Deep Convolutional Networks for Large-Scale Image Recognition*](https://arxiv.org/abs/1409.1556) (ICLR 2015) for the original architecture.
+- **Input**: 224×224 RGB images
+- **Output**: Confidence score (0–1) for the selected criterion
+- **Training**: Binary classification on composition dataset per vocabulary
 
 ## Testing
 
