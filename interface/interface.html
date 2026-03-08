@@ -37,18 +37,69 @@
             border-bottom: none;
             border-top: 1px solid #eee;
         }
-        .topbar-logo {
+        .topbar-left {
             flex: 1;
             display: flex;
             align-items: center;
+            gap: 12px;
             justify-content: flex-start;
             min-width: 0;
+        }
+        .topbar-logo {
             font-family: 'Founders Grotesk', -apple-system, sans-serif;
             font-size: 18px;
             font-weight: 700;
             letter-spacing: 0.02em;
             color: #111;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
         }
+        .topbar-logo:hover { opacity: 0.8; }
+        .topbar-mode-select {
+            padding: 4px 8px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            color: #333;
+            min-width: 100px;
+        }
+        /* Unify bottom bar: mode select, criterion select, and status button — same size, font, stroke, larger radius */
+        .topbar.bottombar .topbar-mode-select,
+        .topbar.bottombar .criterion-select,
+        .topbar.bottombar .backend-status-btn {
+            padding: 4px 8px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            min-height: 26px;
+            box-sizing: border-box;
+        }
+        .topbar.bottombar .criterion-select { min-width: 100px; }
+        .topbar.bottombar .backend-status-btn { background: #fff; }
+        .about-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0,0,0,0.35);
+            align-items: center;
+            justify-content: center;
+        }
+        .about-modal-overlay.show { display: flex; }
+        .about-modal {
+            background: #fff;
+            border-radius: 10px;
+            padding: 24px 28px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        .about-modal h3 { margin: 0 0 12px; font-size: 16px; color: #111; }
+        .about-modal p { margin: 0 0 16px; font-size: 14px; line-height: 1.5; color: #333; }
+        .about-modal a { color: #0066cc; }
         .topbar-center {
             position: absolute;
             left: 50%;
@@ -63,12 +114,8 @@
             justify-content: flex-end;
             min-width: 0;
         }
-        .topbar-center .criterion-label { margin: 0; font-size: 14px; color: #333; }
-        .topbar-center .criterion-select { margin: 0; min-width: 140px; }
-        .topbar-right .backend-status-btn {
-            margin: 0;
-            background-color: #fff;
-        }
+        .topbar-center .criterion-label { margin: 0; font-size: 13px; color: #333; }
+        .topbar-center .criterion-select { margin: 0; }
         .backend-status-btn .status-dot { order: 2; margin-left: 6px; }
         .backend-status-btn .status-text { order: 1; }
         .page-wrap {
@@ -151,7 +198,7 @@
             cursor: pointer;
             border: 1px solid #ccc;
             background-color: #f0f0f0;
-            border-radius: 5px;
+            border-radius: 8px;
             font-size: 14px;
         }
         .button:disabled {
@@ -166,32 +213,47 @@
         }
         .suggestion-grid {
             display: flex;
-            gap: 20px;
-            align-items: flex-start;
-            justify-content: center;
+            align-items: center;
+            justify-content: space-between;
             margin: 12px 0;
             flex-shrink: 0;
+            max-width: 1920px;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            gap: 80px;
+            padding-left: 80px;
+            padding-right: 80px;
+            box-sizing: border-box;
         }
         .suggestion-box {
             flex: 0 0 auto;
-            width: 150px;
+            width: 200px;
+            height: 375px;
+            position: relative;
             text-align: center;
             background: transparent;
             border: none;
             padding: 0;
         }
         .suggestion-box img {
-            display: block;
-            width: 150px;
-            height: 150px;
-            margin: 0 auto;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            margin: 0;
             background: transparent;
         }
         .suggestion-box .preview-label {
             display: none;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(50% + 108px);
             font-size: 12px;
             font-weight: 300;
-            margin-top: 6px;
             color: #888;
         }
         .suggestion-box.has-result .preview-label {
@@ -265,6 +327,8 @@
             padding-right: 24px;
         }
         .status-modal .modal-body code { background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+        .modal-scores-toggle { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee; font-size: 14px; }
+        .modal-scores-toggle label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
         .criterion-label {
             font-size: 14px;
             color: #333;
@@ -277,13 +341,61 @@
             background: #fff;
             min-width: 160px;
         }
+        .action-row {
+            min-height: 52px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
         .evaluate-button {
-            display: block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             margin: 12px auto;
             padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
             flex-shrink: 0;
+            min-width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f0f0f0;
+        }
+        .evaluate-button .loading-spinner {
+            display: none;
+            width: 14px;
+            height: 14px;
+            position: relative;
+            flex-shrink: 0;
+            animation: spinner-rotate 4s linear infinite;
+        }
+        .evaluate-button .loading-spinner.show { display: block; }
+        .evaluate-button .loading-spinner .dot {
+            position: absolute;
+            width: 2px;
+            height: 6px;
+            border-radius: 2px;
+            background: currentColor;
+            left: 50%;
+            top: 50%;
+            margin-left: -1px;
+            margin-top: -3px;
+            transform-origin: 50% 50%;
+        }
+        .evaluate-button .loading-spinner .dot:nth-child(1) { transform: rotate(0deg) translateY(-5px); }
+        .evaluate-button .loading-spinner .dot:nth-child(2) { transform: rotate(45deg) translateY(-5px); }
+        .evaluate-button .loading-spinner .dot:nth-child(3) { transform: rotate(90deg) translateY(-5px); }
+        .evaluate-button .loading-spinner .dot:nth-child(4) { transform: rotate(135deg) translateY(-5px); }
+        .evaluate-button .loading-spinner .dot:nth-child(5) { transform: rotate(180deg) translateY(-5px); }
+        .evaluate-button .loading-spinner .dot:nth-child(6) { transform: rotate(225deg) translateY(-5px); }
+        .evaluate-button .loading-spinner .dot:nth-child(7) { transform: rotate(270deg) translateY(-5px); }
+        .evaluate-button .loading-spinner .dot:nth-child(8) { transform: rotate(315deg) translateY(-5px); }
+        @keyframes spinner-rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
         .feedback {
             width: 500px;
@@ -328,6 +440,17 @@
             <div class="status-modal" id="statusModal">
                 <button type="button" class="modal-close" id="statusModalClose" aria-label="Close">&times;</button>
                 <div class="modal-body" id="statusModalBody"></div>
+                <div class="modal-scores-toggle">
+                    <label><input type="checkbox" id="showScoresCheckbox"> Show model scores</label>
+                </div>
+            </div>
+        </div>
+        <div id="aboutModalOverlay" class="about-modal-overlay">
+            <div class="about-modal">
+                <h3>EKPHRASIS</h3>
+                <p>An interactive system for graphic design education. Create compositions and get &quot;less&quot; and &quot;more&quot; effective examples to build intuition for design vocabulary.</p>
+                <p><a href="https://doi.org/10.1145/3706599.3719807" target="_blank" rel="noopener">Paper (CHI EA ’25)</a></p>
+                <button type="button" class="button" id="aboutModalClose">Close</button>
             </div>
         </div>
         <div class="container">
@@ -362,21 +485,25 @@
             <div class="suggestion-grid">
                 <div class="suggestion-box" id="leftSlot">
                     <img id="leftSlotImg" alt="Less" style="display: none;">
-                    <div class="preview-label" id="leftSlotLabel">Less <span id="criterionNameSlot">Visual Harmony</span></div>
+                    <div class="preview-label" id="leftSlotLabel">Less <span id="criterionNameSlot">Visual Harmony</span><span id="leftSlotScore"></span></div>
                 </div>
                 <div class="canvas-container">
                     <canvas id="drawingCanvas" width="375" height="375"></canvas>
                 </div>
                 <div class="suggestion-box" id="rightSlot">
                     <img id="rightSlotImg" alt="More" style="display: none;">
-                    <div class="preview-label" id="rightSlotLabel">More <span id="criterionNameSlot2">Visual Harmony</span></div>
+                    <div class="preview-label" id="rightSlotLabel">More <span id="criterionNameSlot2">Visual Harmony</span><span id="rightSlotScore"></span></div>
                 </div>
             </div>
             
-            <button class="evaluate-button" id="evaluateBtn">Generate visual aids</button>
-            
-            <div class="loading" id="loadingDiv">
-                Generating visual aids...
+            <div class="action-row" id="actionRow">
+                <button class="evaluate-button" id="evaluateBtn">
+                    <span id="evaluateBtnText">Generate visual aids</span>
+                    <span class="loading-spinner" id="evaluateBtnSpinner">
+                        <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                        <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                    </span>
+                </button>
             </div>
             
             <div class="score-display" id="scoreDisplay" style="display: none;">
@@ -396,7 +523,14 @@
         </div>
         </div>
         <header class="topbar bottombar">
-            <div class="topbar-logo">EKPHRASIS</div>
+            <div class="topbar-left">
+                <button type="button" class="topbar-logo" id="ekphrasisAboutBtn">EKPHRASIS</button>
+                <select id="modeSelect" class="topbar-mode-select">
+                    <option value="canvas">Canvas</option>
+                    <option value="visual_aids" selected>Visual Aids</option>
+                    <option value="chess">Chess</option>
+                </select>
+            </div>
             <div class="topbar-center">
                 <label for="criterionSelect" class="criterion-label">Practice vocabulary:</label>
                 <select id="criterionSelect" class="criterion-select">
@@ -430,7 +564,6 @@ let CRITERIA_LIST = [{ id: 'visual_harmony', name: 'Visual Harmony' }];
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
 const feedback = document.querySelector('#feedbackDiv');
-const loadingDiv = document.querySelector('#loadingDiv');
 const scoreDisplay = document.querySelector('#scoreDisplay');
 const evaluateBtn = document.querySelector('#evaluateBtn');
 const serverStatusBtn = document.getElementById('serverStatusBtn');
@@ -441,8 +574,59 @@ const statusModal = document.getElementById('statusModal');
 const statusModalBody = document.getElementById('statusModalBody');
 const statusModalClose = document.getElementById('statusModalClose');
 const criterionSelect = document.getElementById('criterionSelect');
+const modeSelect = document.getElementById('modeSelect');
 const contentWrapper = document.querySelector('.content-wrapper');
 const containerEl = document.querySelector('.container');
+const aboutModalOverlay = document.getElementById('aboutModalOverlay');
+const aboutModalClose = document.getElementById('aboutModalClose');
+
+// Show model scores in slot labels (Less X n%, More X n%). Default off; toggle in ML status modal.
+let showModelScores = false;
+window._lastLessPct = null;
+window._lastMorePct = null;
+
+function updateSlotLabelScores() {
+    const leftScoreEl = document.getElementById('leftSlotScore');
+    const rightScoreEl = document.getElementById('rightSlotScore');
+    if (!leftScoreEl || !rightScoreEl) return;
+    if (showModelScores && window._lastLessPct != null && window._lastMorePct != null) {
+        leftScoreEl.textContent = ' ' + window._lastLessPct + '%';
+        rightScoreEl.textContent = ' ' + window._lastMorePct + '%';
+    } else {
+        leftScoreEl.textContent = '';
+        rightScoreEl.textContent = '';
+    }
+}
+
+document.getElementById('showScoresCheckbox').addEventListener('change', function () {
+    showModelScores = this.checked;
+    updateSlotLabelScores();
+});
+
+// About modal: click EKPHRASIS to show project description and paper link
+document.getElementById('ekphrasisAboutBtn').addEventListener('click', function () {
+    aboutModalOverlay.classList.add('show');
+});
+aboutModalClose.addEventListener('click', function () {
+    aboutModalOverlay.classList.remove('show');
+});
+aboutModalOverlay.addEventListener('click', function (e) {
+    if (e.target === aboutModalOverlay) aboutModalOverlay.classList.remove('show');
+});
+
+// Mode: Canvas (no generate button), Visual aids (full), Chess (copy of current for now)
+// Use visibility so the action row keeps fixed height and content doesn't shift
+function applyMode() {
+    const actionRow = document.getElementById('actionRow');
+    const mode = modeSelect.value;
+    if (mode === 'canvas') {
+        actionRow.style.visibility = 'hidden';
+    } else {
+        actionRow.style.visibility = 'visible';
+    }
+}
+modeSelect.addEventListener('change', applyMode);
+applyMode();
 
 // Fit content in viewport without scroll (scale down if needed)
 function fitInViewport() {
@@ -753,8 +937,9 @@ async function evaluateWithAI() {
         return;
     }
 
-    // Show loading state
-    loadingDiv.style.display = 'block';
+    // Show loading state inside button (spinner + "Generating")
+    document.getElementById('evaluateBtnSpinner').classList.add('show');
+    document.getElementById('evaluateBtnText').textContent = 'Generating';
     feedback.style.display = 'none';
     scoreDisplay.style.display = 'none';
     evaluateBtn.disabled = true;
@@ -771,13 +956,17 @@ async function evaluateWithAI() {
 
         // Send to ML model server (criterion = selected vocabulary, e.g. visual_harmony)
         const criterion = criterionSelect.value;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
         const response = await fetch(API_BASE + '/predict_multiple', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ criterion: criterion, images: images })
+            body: JSON.stringify({ criterion: criterion, images: images }),
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -811,7 +1000,7 @@ async function evaluateWithAI() {
         feedback.style.display = feedbackText ? 'block' : 'none';
 
         // Left = Less [criterion], Right = More [criterion]
-        const previewSize = 150;
+        const previewSize = 200;
         const lessDataUrl = generateImageDataUrl(variations[result.worst.index], previewSize);
         const moreDataUrl = generateImageDataUrl(variations[result.best.index], previewSize);
         window._lastLessDataUrl = lessDataUrl;
@@ -824,14 +1013,20 @@ async function evaluateWithAI() {
         rightImg.style.display = 'block';
         document.getElementById('leftSlot').classList.add('has-result');
         document.getElementById('rightSlot').classList.add('has-result');
+        window._lastLessPct = (result.worst.confidence * 100).toFixed(1);
+        window._lastMorePct = (result.best.confidence * 100).toFixed(1);
+        updateSlotLabelScores();
 
     } catch (error) {
         console.error('Error evaluating with AI:', error);
-        feedback.textContent = 'Error: Could not connect to AI model. ' + (error.message || 'Please make sure the server is running.');
+        const msg = error.name === 'AbortError'
+            ? 'Request timed out (30s). Is the ML server running? Run: cd ml && python3 start_server.py'
+            : ('Error: ' + (error.message || 'Could not reach ML server. Run: cd ml && python3 start_server.py'));
+        feedback.textContent = msg;
         feedback.style.display = 'block';
     } finally {
-        // Hide loading state
-        loadingDiv.style.display = 'none';
+        document.getElementById('evaluateBtnSpinner').classList.remove('show');
+        document.getElementById('evaluateBtnText').textContent = 'Generate visual aids';
         evaluateBtn.disabled = false;
     }
 }
