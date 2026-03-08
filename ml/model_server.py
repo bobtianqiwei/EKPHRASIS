@@ -6,6 +6,7 @@ from tensorflow.keras.preprocessing import image
 import os
 import base64
 import tempfile
+import datetime
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -94,6 +95,57 @@ def predict():
 def list_criteria():
     """Return list of design vocabularies (id, name) for the dropdown."""
     return jsonify([{'id': c['id'], 'name': c['name']} for c in CRITERIA if c['id'] in models])
+
+@app.route('/save_label', methods=['POST'])
+def save_label():
+    """
+    Save a labeled image to the dataset_new directory.
+    Expects JSON: { criterion: str, label: 'class_0' or 'class_1', image: base64 }
+    """
+    try:
+        data = request.get_json()
+        criterion = data.get('criterion', 'visual_balance')
+        label = data.get('label')  # 'class_0' or 'class_1'
+        image_b64 = data.get('image')
+        
+        if not label or not image_b64:
+            return jsonify({"error": "Missing label or image"}), 400
+            
+        project_root = os.path.dirname(INTERFACE_DIR)
+        date_str = datetime.datetime.now().strftime('%Y-%m-%d')
+        dataset_dir = os.path.join(project_root, 'dataset_new', f"{criterion}_{date_str}")
+        
+        class_dir = os.path.join(dataset_dir, label)
+        os.makedirs(class_dir, exist_ok=True)
+        
+        # Ensure the other class directory exists so counting works smoothly
+        other_class = 'class_1' if label == 'class_0' else 'class_0'
+        os.makedirs(os.path.join(dataset_dir, other_class), exist_ok=True)
+        
+        timestamp = datetime.datetime.now().strftime('%H%M%S%f')
+        filepath = os.path.join(class_dir, f"image_{timestamp}.png")
+        
+        header, b64 = image_b64.split(',', 1)
+        image_data = base64.b64decode(b64)
+        with open(filepath, 'wb') as f:
+            f.write(image_data)
+            
+        # Count files in both directories
+        c0_dir = os.path.join(dataset_dir, 'class_0')
+        c1_dir = os.path.join(dataset_dir, 'class_1')
+        c0_count = len([f for f in os.listdir(c0_dir) if f.endswith(('.png', '.jpg'))])
+        c1_count = len([f for f in os.listdir(c1_dir) if f.endswith(('.png', '.jpg'))])
+        
+        return jsonify({
+            "success": True,
+            "counts": {
+                "class_0": c0_count,
+                "class_1": c1_count,
+                "total": c0_count + c1_count
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/predict_multiple', methods=['POST'])
 def predict_multiple():
