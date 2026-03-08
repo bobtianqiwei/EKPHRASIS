@@ -66,25 +66,28 @@ def train_vocabulary_model(vocabulary_id: str):
         subset='validation'
     )
 
-    # Calculate class weights for imbalanced dataset
+    # Class weights for imbalanced dataset (skip when balanced to avoid Keras 3 generator signature issues)
     train_samples = train_generator.samples
     class_0_count = sum(train_generator.classes == 0)
     class_1_count = sum(train_generator.classes == 1)
-    weight_0 = (1 / class_0_count) * (train_samples / 2.0)
-    weight_1 = (1 / class_1_count) * (train_samples / 2.0)
-    class_weight = {0: weight_0, 1: weight_1}
     print(f"Class counts - 0: {class_0_count}, 1: {class_1_count}")
-    print(f"Using class weights - 0: {weight_0:.2f}, 1: {weight_1:.2f}")
+    class_weight = None
+    if class_0_count != class_1_count and class_0_count > 0 and class_1_count > 0:
+        weight_0 = (1 / class_0_count) * (train_samples / 2.0)
+        weight_1 = (1 / class_1_count) * (train_samples / 2.0)
+        class_weight = {0: weight_0, 1: weight_1}
+        print(f"Using class weights - 0: {weight_0:.2f}, 1: {weight_1:.2f}")
 
     # Train
-    history = model.fit(
-        train_generator,
-        steps_per_epoch=train_generator.samples // train_generator.batch_size,
-        validation_data=validation_generator,
-        validation_steps=validation_generator.samples // validation_generator.batch_size,
-        class_weight=class_weight,
-        epochs=10
-    )
+    fit_kw = {
+        "epochs": 10,
+        "steps_per_epoch": train_generator.samples // train_generator.batch_size,
+        "validation_data": validation_generator,
+        "validation_steps": validation_generator.samples // validation_generator.batch_size,
+    }
+    if class_weight is not None:
+        fit_kw["class_weight"] = class_weight
+    history = model.fit(train_generator, **fit_kw)
 
     # Save under ml/models/
     models_dir = os.path.join(ml_dir, 'models')
