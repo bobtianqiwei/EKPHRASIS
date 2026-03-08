@@ -278,6 +278,10 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        .label-data-btn.pressed {
+            transform: scale(0.97);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.12);
+        }
         .instructions {
             width: 440px;
             text-align: center;
@@ -698,10 +702,21 @@
             </div>
 
             <div class="action-row" id="labelDataActionRow" style="display: none; flex-direction: column; align-items: center; justify-content: center; height: auto;">
-                <div style="display: flex; gap: 16px;">
-                    <button type="button" class="button" onclick="saveLabel('class_0')" style="min-width: 140px; padding: 12px; font-weight: 600;">Does not fit (0)</button>
-                    <button type="button" class="button" onclick="saveLabel('class_1')" style="min-width: 140px; padding: 12px; font-weight: 600;">Fits (1)</button>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
+                        <span>Vocabulary:</span>
+                        <input type="text" id="labelDataVocabulary" placeholder="e.g. visual_balance" style="width: 140px; padding: 6px 8px;">
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
+                        <span>Labeler:</span>
+                        <input type="text" id="labelDataLabeler" placeholder="Your name" style="width: 120px; padding: 6px 8px;">
+                    </label>
                 </div>
+                <div style="display: flex; gap: 16px;">
+                    <button type="button" id="labelDataBtn0" class="button label-data-btn" onclick="saveLabel('class_0')" style="min-width: 140px; padding: 12px; font-weight: 600;">Does not fit (0)</button>
+                    <button type="button" id="labelDataBtn1" class="button label-data-btn" onclick="saveLabel('class_1')" style="min-width: 140px; padding: 12px; font-weight: 600;">Fits (1)</button>
+                </div>
+                <div style="font-size: 11px; color: #999; margin-top: 6px;">Use keyboard: ← 0, → 1</div>
                 <div id="labelDataCount" style="margin-top: 12px; font-size: 13px; color: #666;">Labels: 0 class_0, 0 class_1 (Total: 0)</div>
             </div>
             
@@ -867,6 +882,9 @@ function applyMode() {
     
     if (mode === 'label_data') {
         actionRow.style.display = 'none';
+        const vocabInput = document.getElementById('labelDataVocabulary');
+        if (vocabInput) vocabInput.value = criterionSelect.value;
+        fetchLabelCounts();
         generateLabelDataImage();
         return;
     } else {
@@ -896,12 +914,33 @@ applyMode();
 
 // Label Data mode state
 let labelDataCounts = { class_0: 0, class_1: 0, total: 0 };
+let labelCountsDebounce = null;
 
 function updateLabelDataCountDisplay() {
     const el = document.getElementById('labelDataCount');
     if (el) {
         el.textContent = `Labels: ${labelDataCounts.class_0} class_0, ${labelDataCounts.class_1} class_1 (Total: ${labelDataCounts.total})`;
     }
+}
+
+async function fetchLabelCounts() {
+    const vocabEl = document.getElementById('labelDataVocabulary');
+    const labelerEl = document.getElementById('labelDataLabeler');
+    const vocabulary = (vocabEl && vocabEl.value.trim()) || criterionSelect.value;
+    const labeler = (labelerEl && labelerEl.value.trim()) || 'unknown';
+    try {
+        const res = await fetch(API_BASE + '/label_counts?' + new URLSearchParams({ vocabulary, labeler }));
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.error) return;
+        labelDataCounts = { class_0: data.class_0 || 0, class_1: data.class_1 || 0, total: data.total || 0 };
+        updateLabelDataCountDisplay();
+    } catch (_) {}
+}
+
+function scheduleFetchLabelCounts() {
+    if (labelCountsDebounce) clearTimeout(labelCountsDebounce);
+    labelCountsDebounce = setTimeout(fetchLabelCounts, 400);
 }
 
 function generateLabelDataImage() {
@@ -931,10 +970,12 @@ function generateLabelDataImage() {
 
 async function saveLabel(classStr) {
     if (rectangles.length === 0) return;
-    const criterion = criterionSelect.value;
+    const vocabEl = document.getElementById('labelDataVocabulary');
+    const labelerEl = document.getElementById('labelDataLabeler');
+    const vocabulary = (vocabEl && vocabEl.value.trim()) || criterionSelect.value;
+    const labeler = (labelerEl && labelerEl.value.trim()) || 'unknown';
     const imageBase64 = generateImageAsBase64(rectangles);
     
-    // Optional: disable buttons while saving
     const buttons = document.getElementById('labelDataActionRow').querySelectorAll('button');
     buttons.forEach(b => b.disabled = true);
     
@@ -942,7 +983,7 @@ async function saveLabel(classStr) {
         const res = await fetch(API_BASE + '/save_label', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ criterion, label: classStr, image: imageBase64 })
+            body: JSON.stringify({ vocabulary, labeler, label: classStr, image: imageBase64 })
         });
         if (!res.ok) throw new Error(await res.text() || 'Save failed');
         const data = await res.json();
@@ -959,6 +1000,40 @@ async function saveLabel(classStr) {
         buttons.forEach(b => b.disabled = false);
     }
 }
+
+// Sync vocabulary input when Practice vocabulary changes in Label Data mode; refresh counts when inputs change
+criterionSelect.addEventListener('change', function () {
+    if (modeSelect.value === 'label_data') {
+        const v = document.getElementById('labelDataVocabulary');
+        if (v) v.value = criterionSelect.value;
+        fetchLabelCounts();
+    }
+});
+document.getElementById('labelDataVocabulary').addEventListener('input', scheduleFetchLabelCounts);
+document.getElementById('labelDataLabeler').addEventListener('input', scheduleFetchLabelCounts);
+
+// Label Data: keyboard Left = 0, Right = 1; show pressed state on buttons
+function isLabelDataInput(el) {
+    const tag = el && el.tagName && el.tagName.toLowerCase();
+    return tag === 'input' || tag === 'textarea' || tag === 'select';
+}
+document.addEventListener('keydown', function (e) {
+    if (modeSelect.value !== 'label_data') return;
+    if (isLabelDataInput(document.activeElement)) return;
+    const btn0 = document.getElementById('labelDataBtn0');
+    const btn1 = document.getElementById('labelDataBtn1');
+    if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (btn0 && !btn0.disabled) { btn0.classList.add('pressed'); saveLabel('class_0'); }
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (btn1 && !btn1.disabled) { btn1.classList.add('pressed'); saveLabel('class_1'); }
+    }
+});
+document.addEventListener('keyup', function (e) {
+    if (e.key === 'ArrowLeft') document.getElementById('labelDataBtn0') && document.getElementById('labelDataBtn0').classList.remove('pressed');
+    if (e.key === 'ArrowRight') document.getElementById('labelDataBtn1') && document.getElementById('labelDataBtn1').classList.remove('pressed');
+});
 
 // Test Model: run uploaded images through current criterion, show image + score per result
 document.getElementById('testModelRunBtn').addEventListener('click', async function () {
@@ -1376,8 +1451,9 @@ canvas.addEventListener('mousemove', drawOrDragRectangle);
 canvas.addEventListener('mouseup', endDrawingOrDragging);
 document.addEventListener('keydown', handleKeyPress);
 
-// Handle 'n' and 'b' key events
+// Handle 'n' and 'b' key events (not in Label Data mode)
 function handleKeyPress(e) {
+    if (modeSelect.value === 'label_data') return;
     if (e.key === 'n') {
         addRandomRectangle();
     } else if (e.key === 'b') {
@@ -1410,6 +1486,7 @@ function addRandomRectangle() {
 
 // Show last evaluated less/more in the left/right slots. Press 'b' to show again.
 function addBlockToPage() {
+    if (modeSelect.value === 'label_data') return;
     if (window._lastLessDataUrl && window._lastMoreDataUrl) {
         const leftImg = document.getElementById('leftSlotImg');
         const rightImg = document.getElementById('rightSlotImg');

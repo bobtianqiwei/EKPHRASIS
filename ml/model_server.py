@@ -4,6 +4,7 @@ import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 import os
+import re
 import base64
 import tempfile
 import datetime
@@ -96,29 +97,57 @@ def list_criteria():
     """Return list of design vocabularies (id, name) for the dropdown."""
     return jsonify([{'id': c['id'], 'name': c['name']} for c in CRITERIA if c['id'] in models])
 
+def _sanitize_for_folder(s):
+    """Allow only alphanumeric, underscore, hyphen for folder names."""
+    s = (s or '').strip() or 'unknown'
+    s = re.sub(r'[^\w\-]', '_', s)
+    return s[:80] or 'unknown'
+
+def _label_folder_path(project_root, vocabulary, labeler):
+    """Path: dataset/new/{vocabulary}_{date}_{labeler}"""
+    date_str = datetime.datetime.now().strftime('%Y-%m-%d')
+    vocab = _sanitize_for_folder(vocabulary)
+    lbl = _sanitize_for_folder(labeler)
+    folder_name = f"{vocab}_{date_str}_{lbl}"
+    return os.path.join(project_root, 'dataset', 'new', folder_name)
+
+@app.route('/label_counts', methods=['GET'])
+def label_counts():
+    """Return counts for dataset/new/{vocabulary}_{date}_{labeler}. Query: vocabulary, labeler."""
+    try:
+        vocabulary = request.args.get('vocabulary', 'visual_balance')
+        labeler = request.args.get('labeler', '')
+        project_root = os.path.dirname(INTERFACE_DIR)
+        dataset_dir = _label_folder_path(project_root, vocabulary, labeler)
+        c0_dir = os.path.join(dataset_dir, 'class_0')
+        c1_dir = os.path.join(dataset_dir, 'class_1')
+        c0_count = len([f for f in os.listdir(c0_dir) if f.endswith(('.png', '.jpg'))]) if os.path.isdir(c0_dir) else 0
+        c1_count = len([f for f in os.listdir(c1_dir) if f.endswith(('.png', '.jpg'))]) if os.path.isdir(c1_dir) else 0
+        return jsonify({"class_0": c0_count, "class_1": c1_count, "total": c0_count + c1_count})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/save_label', methods=['POST'])
 def save_label():
     """
-    Save a labeled image to the dataset_new directory.
-    Expects JSON: { criterion: str, label: 'class_0' or 'class_1', image: base64 }
+    Save a labeled image to dataset/new/{vocabulary}_{date}_{labeler}.
+    Expects JSON: { vocabulary: str, labeler: str, label: 'class_0'|'class_1', image: base64 }
     """
     try:
         data = request.get_json()
-        criterion = data.get('criterion', 'visual_balance')
-        label = data.get('label')  # 'class_0' or 'class_1'
+        vocabulary = data.get('vocabulary') or data.get('criterion') or 'visual_balance'
+        labeler = data.get('labeler') or 'unknown'
+        label = data.get('label')
         image_b64 = data.get('image')
         
         if not label or not image_b64:
             return jsonify({"error": "Missing label or image"}), 400
             
         project_root = os.path.dirname(INTERFACE_DIR)
-        date_str = datetime.datetime.now().strftime('%Y-%m-%d')
-        dataset_dir = os.path.join(project_root, 'dataset_new', f"{criterion}_{date_str}")
+        dataset_dir = _label_folder_path(project_root, vocabulary, labeler)
         
         class_dir = os.path.join(dataset_dir, label)
         os.makedirs(class_dir, exist_ok=True)
-        
-        # Ensure the other class directory exists so counting works smoothly
         other_class = 'class_1' if label == 'class_0' else 'class_0'
         os.makedirs(os.path.join(dataset_dir, other_class), exist_ok=True)
         
@@ -130,7 +159,6 @@ def save_label():
         with open(filepath, 'wb') as f:
             f.write(image_data)
             
-        # Count files in both directories
         c0_dir = os.path.join(dataset_dir, 'class_0')
         c1_dir = os.path.join(dataset_dir, 'class_1')
         c0_count = len([f for f in os.listdir(c0_dir) if f.endswith(('.png', '.jpg'))])
@@ -138,11 +166,7 @@ def save_label():
         
         return jsonify({
             "success": True,
-            "counts": {
-                "class_0": c0_count,
-                "class_1": c1_count,
-                "total": c0_count + c1_count
-            }
+            "counts": {"class_0": c0_count, "class_1": c1_count, "total": c0_count + c1_count}
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
