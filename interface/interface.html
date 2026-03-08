@@ -150,6 +150,16 @@
             border: 1px solid #ccc;
             flex-shrink: 0;
         }
+        .canvas-score-label {
+            font-size: 12px;
+            font-weight: 300;
+            color: #888;
+            text-align: center;
+            margin-top: 8px;
+            min-height: 1.2em;
+        }
+        .canvas-score-label.empty { display: none; }
+        .canvas-wrapper { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
         .upper-section {
             display: flex;
             flex-direction: column;
@@ -329,6 +339,11 @@
         .status-modal .modal-body code { background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
         .modal-scores-toggle { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee; font-size: 14px; }
         .modal-scores-toggle label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .modal-variation-params { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee; font-size: 14px; }
+        .modal-variation-params .modal-variation-title { font-weight: 600; color: #111; margin-bottom: 4px; }
+        .modal-variation-params .modal-variation-desc { font-size: 13px; color: #666; margin-bottom: 10px; line-height: 1.4; }
+        .modal-variation-params label { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
+        .modal-variation-params input[type="number"] { width: 56px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
         .criterion-label {
             font-size: 14px;
             color: #333;
@@ -443,6 +458,12 @@
                 <div class="modal-scores-toggle">
                     <label><input type="checkbox" id="showScoresCheckbox"> Show model scores</label>
                 </div>
+                <div class="modal-variation-params">
+                    <div class="modal-variation-title">Variation range</div>
+                    <div class="modal-variation-desc">Each generated variant randomly shifts block position and scales block size within the ranges below.</div>
+                    <label>Position &plusmn; <input type="number" id="variationPositionPx" min="1" max="200" value="25" title="Max position offset in pixels"> px</label>
+                    <label>Scale <input type="number" id="variationScaleMin" min="10" max="100" value="80" title="Min scale %">% &ndash; <input type="number" id="variationScaleMax" min="50" max="200" value="120" title="Max scale %">%</label>
+                </div>
             </div>
         </div>
         <div id="aboutModalOverlay" class="about-modal-overlay">
@@ -487,8 +508,11 @@
                     <img id="leftSlotImg" alt="Less" style="display: none;">
                     <div class="preview-label" id="leftSlotLabel">Less <span id="criterionNameSlot">Visual Harmony</span><span id="leftSlotScore"></span></div>
                 </div>
-                <div class="canvas-container">
-                    <canvas id="drawingCanvas" width="375" height="375"></canvas>
+                <div class="canvas-wrapper">
+                    <div class="canvas-container">
+                        <canvas id="drawingCanvas" width="375" height="375"></canvas>
+                    </div>
+                    <div class="canvas-score-label empty" id="canvasScoreLabel" aria-live="polite"></div>
                 </div>
                 <div class="suggestion-box" id="rightSlot">
                     <img id="rightSlotImg" alt="More" style="display: none;">
@@ -595,6 +619,16 @@ function updateSlotLabelScores() {
     } else {
         leftScoreEl.textContent = '';
         rightScoreEl.textContent = '';
+    }
+    const canvasScoreEl = document.getElementById('canvasScoreLabel');
+    if (canvasScoreEl) {
+        if (showModelScores && window._lastUserPct != null) {
+            canvasScoreEl.textContent = 'Your composition: ' + window._lastUserPct + '%';
+            canvasScoreEl.classList.remove('empty');
+        } else {
+            canvasScoreEl.textContent = '';
+            canvasScoreEl.classList.add('empty');
+        }
     }
 }
 
@@ -727,23 +761,25 @@ function calculateCorners(rect) {
     };
 }
 
-// Create a variation of rectangles with slight random changes
+// Create a variation of rectangles with random changes (position and scale from status modal inputs)
 function createVariation(originalRectangles) {
+    const positionPx = parseInt(document.getElementById('variationPositionPx').value, 10);
+    const positionRange = (isNaN(positionPx) || positionPx < 1 ? 25 : Math.min(200, positionPx)) * 2;
+    const scaleMinEl = document.getElementById('variationScaleMin');
+    const scaleMaxEl = document.getElementById('variationScaleMax');
+    const scaleMin = (parseInt(scaleMinEl.value, 10) || 80) / 100;
+    const scaleMax = (parseInt(scaleMaxEl.value, 10) || 120) / 100;
+    const scaleRange = Math.max(0.01, scaleMax - scaleMin);
+
     return originalRectangles.map(rect => {
         const newRect = { ...rect };
-        // Random position adjustment (±25 pixels)
-        newRect.x += (Math.random() - 0.5) * 50;
-        newRect.y += (Math.random() - 0.5) * 50;
-        
-        // Random size adjustment (±20%)
-        const sizeChange = 0.8 + Math.random() * 0.4;
+        newRect.x += (Math.random() - 0.5) * positionRange;
+        newRect.y += (Math.random() - 0.5) * positionRange;
+        const sizeChange = scaleMin + Math.random() * scaleRange;
         newRect.width *= sizeChange;
         newRect.height *= sizeChange;
-        
-        // Keep rectangles within canvas bounds
         newRect.x = Math.max(0, Math.min(canvas.width - newRect.width, newRect.x));
         newRect.y = Math.max(0, Math.min(canvas.height - newRect.height, newRect.y));
-        
         return newRect;
     });
 }
@@ -945,14 +981,13 @@ async function evaluateWithAI() {
     evaluateBtn.disabled = true;
 
     try {
-        // Generate 10 variations
+        // Build list: user canvas (index 0) + 20 variations
         const variations = [];
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 20; i++) {
             variations.push(createVariation(rectangles));
         }
-
-        // Convert variations to base64 images
-        const images = variations.map(variation => generateImageAsBase64(variation));
+        const allVariations = [rectangles, ...variations];
+        const images = allVariations.map(r => generateImageAsBase64(r));
 
         // Send to ML model server (criterion = selected vocabulary, e.g. visual_harmony)
         const criterion = criterionSelect.value;
@@ -999,10 +1034,14 @@ async function evaluateWithAI() {
         feedback.textContent = feedbackText;
         feedback.style.display = feedbackText ? 'block' : 'none';
 
-        // Left = Less [criterion], Right = More [criterion]
+        // User canvas score (index 0 in allVariations)
+        const userResult = result.all_results && result.all_results.find(r => r.index === 0);
+        window._lastUserPct = userResult ? (userResult.confidence * 100).toFixed(1) : null;
+
+        // Left = Less [criterion], Right = More [criterion] (indices into allVariations: 0 = user, 1..20 = variations)
         const previewSize = 200;
-        const lessDataUrl = generateImageDataUrl(variations[result.worst.index], previewSize);
-        const moreDataUrl = generateImageDataUrl(variations[result.best.index], previewSize);
+        const lessDataUrl = generateImageDataUrl(allVariations[result.worst.index], previewSize);
+        const moreDataUrl = generateImageDataUrl(allVariations[result.best.index], previewSize);
         window._lastLessDataUrl = lessDataUrl;
         window._lastMoreDataUrl = moreDataUrl;
         const leftImg = document.getElementById('leftSlotImg');
