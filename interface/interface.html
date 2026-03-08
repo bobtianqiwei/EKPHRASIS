@@ -515,12 +515,12 @@
         .chess-message-area.empty { visibility: hidden; }
         #testModelSection { display: none; padding: 24px; max-width: 100%; width: 100%; box-sizing: border-box; margin: 0; overflow-y: auto; min-width: 0; }
         #testModelSection.show { display: block; }
-        .test-model-upload { margin-bottom: 24px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
-        .test-model-upload .test-model-btn,
-        .test-model-upload input[type="file"].test-model-btn { padding: 4px 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 8px; min-height: 26px; box-sizing: border-box; background: #fff; color: #333; cursor: pointer; }
+        .test-model-upload { margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .test-model-upload .test-model-btn { padding: 4px 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 8px; min-height: 26px; box-sizing: border-box; background: #fff; color: #333; cursor: pointer; }
         .test-model-upload .test-model-btn:hover { background: #f5f5f5; }
         .test-model-upload .test-model-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .test-model-upload input[type="file"].test-model-btn { max-width: 180px; font-family: inherit; }
+        .test-model-upload input[type="file"] { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+        .test-model-filename { font-size: 12px; color: #888; margin-bottom: 16px; min-height: 18px; text-align: center; }
         .test-model-results { display: grid; grid-template-columns: repeat(auto-fill, 160px); gap: 16px; justify-content: center; width: 100%; box-sizing: border-box; }
         .test-model-card { width: 160px; border: 1px solid #ccc; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
         .test-model-card img { display: block; width: 160px; height: 160px; object-fit: contain; background: #f5f5f5; }
@@ -790,10 +790,12 @@
             </div>
             <div id="testModelSection">
                 <div class="test-model-upload">
-                    <input type="file" id="testModelFileInput" class="test-model-btn" accept="image/*" multiple>
+                    <input type="file" id="testModelFileInput" accept="image/*" multiple>
+                    <button type="button" class="test-model-btn" id="testModelChooseFileBtn">Choose file</button>
                     <button type="button" class="test-model-btn" id="testModelRunBtn">Run selected</button>
                     <button type="button" class="test-model-btn" id="testModelDatasetBtn">Run dataset/test_images</button>
                 </div>
+                <div id="testModelFilename" class="test-model-filename"></div>
                 <div id="testModelError" class="test-model-error" style="display: none; text-align: center;"></div>
                 <div id="testModelResults" class="test-model-results"></div>
             </div>
@@ -1119,6 +1121,23 @@ document.addEventListener('keydown', function (e) {
 document.addEventListener('keyup', function (e) {
     if (e.key === 'ArrowLeft') document.getElementById('labelDataBtn0') && document.getElementById('labelDataBtn0').classList.remove('pressed');
     if (e.key === 'ArrowRight') document.getElementById('labelDataBtn1') && document.getElementById('labelDataBtn1').classList.remove('pressed');
+});
+
+// Test Model: Choose file button triggers hidden input; show selected filename(s) on next line
+document.getElementById('testModelChooseFileBtn').addEventListener('click', function () {
+    document.getElementById('testModelFileInput').click();
+});
+document.getElementById('testModelFileInput').addEventListener('change', function () {
+    const el = document.getElementById('testModelFilename');
+    if (!this.files || this.files.length === 0) {
+        el.textContent = '';
+        return;
+    }
+    if (this.files.length === 1) {
+        el.textContent = this.files[0].name;
+    } else {
+        el.textContent = Array.from(this.files).map(f => f.name).join(', ');
+    }
 });
 
 // Test Model: run uploaded images through current criterion, show image + score per result
