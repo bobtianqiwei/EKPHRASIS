@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asymmetrical Balance Composer</title>
+    <title>EKPHRASIS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body, html {
@@ -98,13 +98,33 @@
         }
         .suggestion-grid {
             display: flex;
-            gap: 10px;
-            margin-top: 100px;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
         }
         .suggestion-box {
-            flex: 1;
-            aspect-ratio: 1;
-            background-color: #ddd;
+            flex: 0 0 auto;
+            width: 150px;
+            text-align: center;
+            background-color: #eee;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 8px;
+        }
+        .suggestion-box img {
+            display: block;
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            border-radius: 4px;
+            background: #fff;
+        }
+        .suggestion-box .preview-label {
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 6px;
+            color: #333;
         }
         .evaluate-button {
         display: block;
@@ -112,6 +132,33 @@
         padding: 10px 20px;
         font-size: 16px;
         cursor: pointer;
+        }
+        .server-status {
+            width: 520px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+            display: none;
+        }
+        .server-status.error {
+            display: block;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+        }
+        .server-status.ok {
+            display: block;
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+        }
+        .server-status code {
+            background: rgba(0,0,0,0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
         }
         .feedback {
             width: 500px;
@@ -148,7 +195,6 @@
             font-size: 18px;
             color: #333;
         }
-
     </style>
 </head>
 <body>
@@ -181,24 +227,35 @@
                 </div>
             </div>
 
-            <div class="canvas-container">
-                <canvas id="drawingCanvas" width="375" height="375"></canvas>
+            <div class="suggestion-grid">
+                <div class="suggestion-box" id="leftSlot">
+                    <img id="leftSlotImg" alt="Less" style="display: none;">
+                    <div class="preview-label" id="leftSlotLabel">Less <span id="criterionNameSlot">Visual Harmony</span></div>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="drawingCanvas" width="375" height="375"></canvas>
+                </div>
+                <div class="suggestion-box" id="rightSlot">
+                    <img id="rightSlotImg" alt="More" style="display: none;">
+                    <div class="preview-label" id="rightSlotLabel">More <span id="criterionNameSlot2">Visual Harmony</span></div>
+                </div>
             </div>
             
-            <button class="evaluate-button" id="evaluateBtn">Evaluate with AI</button>
+            <div class="server-status" id="serverStatus"></div>
+            <button class="evaluate-button" id="evaluateBtn">Generate visual aids</button>
             
             <div class="loading" id="loadingDiv">
-                Generating variations and analyzing with AI model...
+                Generating visual aids...
             </div>
             
             <div class="score-display" id="scoreDisplay" style="display: none;">
                 <div class="score-box">
-                    <div class="score-label">Best Score</div>
-                    <div class="score-value" id="bestScore">-</div>
+                    <div class="score-label" id="lessScoreLabel">Less <span id="criterionNameLess">Visual Harmony</span></div>
+                    <div class="score-value" id="lessScore">-</div>
                 </div>
                 <div class="score-box">
-                    <div class="score-label">Worst Score</div>
-                    <div class="score-value" id="worstScore">-</div>
+                    <div class="score-label" id="moreScoreLabel">More <span id="criterionNameMore">Visual Harmony</span></div>
+                    <div class="score-value" id="moreScore">-</div>
                 </div>
             </div>
             
@@ -215,8 +272,13 @@ let startX, startY;
 let rectangles = [];
 let currentRectangle = null;
 let dragOffsetX, dragOffsetY;
-let blocksAdded = 0;
 let currentColor = '#D9D9D9'; // Default color
+
+// Same-origin when served from backend (http://localhost:5001/); else explicit URL for file://
+const API_BASE = (window.location.hostname === 'localhost' && window.location.port === '5001') ? '' : 'http://localhost:5001';
+
+// Criterion name for "Less X" / "More X" labels (e.g. "Visual Harmony"; can change later)
+const CRITERION_NAME = 'Visual Harmony';
 
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
@@ -224,9 +286,36 @@ const feedback = document.querySelector('#feedbackDiv');
 const loadingDiv = document.querySelector('#loadingDiv');
 const scoreDisplay = document.querySelector('#scoreDisplay');
 const evaluateBtn = document.querySelector('#evaluateBtn');
+const serverStatusEl = document.getElementById('serverStatus');
 
 // Initially hide the feedback message
 feedback.style.display = 'none';
+
+// Set all "X" labels from CRITERION_NAME (change CRITERION_NAME to switch criterion)
+['criterionNameSlot', 'criterionNameSlot2', 'criterionNameLess', 'criterionNameMore'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = CRITERION_NAME;
+});
+
+// Check backend on load and show clear instructions if not running
+function checkServer() {
+    serverStatusEl.className = 'server-status';
+    serverStatusEl.textContent = 'Checking server...';
+    serverStatusEl.style.display = 'block';
+    fetch(API_BASE + '/health', { method: 'GET' })
+        .then(r => r.json())
+        .then(data => {
+            serverStatusEl.className = 'server-status ok';
+            serverStatusEl.textContent = 'Server connected. You can generate visual aids.';
+        })
+        .catch(() => {
+            serverStatusEl.className = 'server-status error';
+            const projectRoot = document.location.pathname.replace(/\/interface\/.*$/, '');
+            serverStatusEl.innerHTML = 'Backend not running — "Failed to fetch" means the AI server is off.<br>' +
+                'Start it: open <strong>Terminal</strong>, run: <code>cd "' + projectRoot + '/ml" && python3 start_server.py</code> and keep that window open.';
+        });
+}
+checkServer();
 
 // Define grey color palette
 const greyColors = ['#D9D9D9', '#9C9C9C', '#535353', '#323131', '#000000'];
@@ -295,35 +384,27 @@ function generateImageAsBase64(rectangles) {
     return tempCanvas.toDataURL('image/png');
 }
 
-// Generate and save image as PNG
-function generateAndSaveImage(rectangles, filename, size) {
+// Generate image as data URL (for display or download)
+function generateImageDataUrl(rectangles, size) {
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = size;
     tempCanvas.height = size;
     const tempCtx = tempCanvas.getContext('2d');
-    
-    // Set white background
     tempCtx.fillStyle = 'white';
     tempCtx.fillRect(0, 0, size, size);
-    
-    // Calculate scale for 300x300 output
     const scale = size / 375;
-    
-    // Draw all rectangles
     rectangles.forEach(rect => {
         tempCtx.fillStyle = rect.color;
-        tempCtx.fillRect(
-            rect.x * scale,
-            rect.y * scale,
-            rect.width * scale,
-            rect.height * scale
-        );
+        tempCtx.fillRect(rect.x * scale, rect.y * scale, rect.width * scale, rect.height * scale);
     });
-    
-    // Download image
+    return tempCanvas.toDataURL('image/png');
+}
+
+// Generate and save image as PNG (for explicit export/download)
+function generateAndSaveImage(rectangles, filename, size) {
     const link = document.createElement('a');
     link.download = filename;
-    link.href = tempCanvas.toDataURL('image/png');
+    link.href = generateImageDataUrl(rectangles, size);
     link.click();
 }
 
@@ -363,63 +444,18 @@ function addRandomRectangle() {
     renderRectangles();
 }
 
-// Add image blocks to page
+// Show last evaluated less/more in the left/right slots. Press 'b' to show again.
 function addBlockToPage() {
-    const blockSize = 200;
-
-    // Create image elements
-    const leftImage = document.createElement('img');
-    leftImage.src = '/Users/bobwei/Downloads/left.png'; // Updated path
-    leftImage.style.width = blockSize + 'px';
-    leftImage.style.height = blockSize + 'px';
-    leftImage.style.position = 'absolute';
-    leftImage.style.top = `calc(40% + 0px)`;
-
-    const rightImage = document.createElement('img');
-    rightImage.src = '/Users/bobwei/Downloads/right.png'; // Updated path
-    rightImage.style.width = blockSize + 'px';
-    rightImage.style.height = blockSize + 'px';
-    rightImage.style.position = 'absolute';
-    rightImage.style.top = `calc(40% + 0px)`;
-
-    // Create labels
-    const leftLabel = document.createElement('div');
-    leftLabel.style.position = 'absolute';
-    leftLabel.style.fontSize = '12px';
-    leftLabel.style.color = '#000000';
-    leftLabel.style.textAlign = 'center';
-    leftLabel.style.width = blockSize + 'px';
-    leftLabel.style.zIndex = '20';
-
-    const rightLabel = document.createElement('div');
-    rightLabel.style.position = 'absolute';
-    rightLabel.style.fontSize = '12px';
-    rightLabel.style.color = '#000000';
-    rightLabel.style.textAlign = 'center';
-    rightLabel.style.width = blockSize + 'px';
-    rightLabel.style.zIndex = '20';
-
-    const canvasRect = canvas.getBoundingClientRect();
-    const labelTop = `calc(40% - 30px)`;
-
-    if (blocksAdded % 2 === 0) {
-        leftImage.style.left = (canvasRect.left - blockSize - 120) + 'px';
-        leftLabel.style.left = (canvasRect.left - blockSize - 120) + 'px';
-        leftLabel.style.top = labelTop;
-        leftLabel.innerHTML = 'Less Harmonious';
-        
-        rightImage.style.left = (canvasRect.right + 120) + 'px';
-        rightLabel.style.left = (canvasRect.right + 120) + 'px';
-        rightLabel.style.top = labelTop;
-        rightLabel.innerHTML = 'More Harmonious';
+    if (window._lastLessDataUrl && window._lastMoreDataUrl) {
+        const leftImg = document.getElementById('leftSlotImg');
+        const rightImg = document.getElementById('rightSlotImg');
+        leftImg.src = window._lastLessDataUrl;
+        leftImg.style.display = 'block';
+        rightImg.src = window._lastMoreDataUrl;
+        rightImg.style.display = 'block';
+    } else {
+        alert('Generate visual aids first to see less and more ' + CRITERION_NAME.toLowerCase() + ' here.');
     }
-
-    document.body.appendChild(leftImage);
-    document.body.appendChild(leftLabel);
-    document.body.appendChild(rightImage);
-    document.body.appendChild(rightLabel);
-
-    blocksAdded++;
 }
 
 // Start drawing or dragging
@@ -499,7 +535,7 @@ function clearCanvas() {
     renderRectangles();
 }
 
-// Evaluate with AI model
+// Generate visual aids (run model, show less/more examples)
 async function evaluateWithAI() {
     if (rectangles.length === 0) {
         alert('Please create a composition first before evaluating.');
@@ -523,7 +559,7 @@ async function evaluateWithAI() {
         const images = variations.map(variation => generateImageAsBase64(variation));
 
         // Send to ML model server
-        const response = await fetch('http://localhost:5000/predict_multiple', {
+        const response = await fetch(API_BASE + '/predict_multiple', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -542,34 +578,42 @@ async function evaluateWithAI() {
         }
 
         // Display results
-        document.getElementById('bestScore').textContent = (result.best.confidence * 100).toFixed(1) + '%';
-        document.getElementById('worstScore').textContent = (result.worst.confidence * 100).toFixed(1) + '%';
-        
-        scoreDisplay.style.display = 'flex';
-        
+        document.getElementById('lessScore').textContent = (result.worst.confidence * 100).toFixed(1) + '%';
+        document.getElementById('moreScore').textContent = (result.best.confidence * 100).toFixed(1) + '%';
+        // Score display hidden per design; uncomment next line to show scores: scoreDisplay.style.display = 'flex';
+
         // Generate feedback based on scores
-        const bestScore = result.best.confidence;
-        const worstScore = result.worst.confidence;
+        const moreScore = result.best.confidence;
+        const lessScore = result.worst.confidence;
         
         let feedbackText = '';
-        if (bestScore > 0.8) {
+        if (moreScore > 0.8) {
             feedbackText = 'Excellent composition! Your design shows strong visual harmony. The AI model recognizes the balanced arrangement of elements.';
-        } else if (bestScore > 0.6) {
-            feedbackText = 'Good composition with room for improvement. Consider adjusting the balance and spacing of elements for better visual harmony.';
+        } else if (moreScore > 0.6) {
+            feedbackText = '';
         } else {
             feedbackText = 'The composition could be improved. Try experimenting with different arrangements, sizes, and positions of elements to achieve better balance.';
         }
         
         feedback.textContent = feedbackText;
-        feedback.style.display = 'block';
+        feedback.style.display = feedbackText ? 'block' : 'none';
 
-        // Save best and worst variations as images
-        generateAndSaveImage(variations[result.best.index], 'best_variation.png', 300);
-        generateAndSaveImage(variations[result.worst.index], 'worst_variation.png', 300);
+        // Left = Less [criterion], Right = More [criterion]
+        const previewSize = 150;
+        const lessDataUrl = generateImageDataUrl(variations[result.worst.index], previewSize);
+        const moreDataUrl = generateImageDataUrl(variations[result.best.index], previewSize);
+        window._lastLessDataUrl = lessDataUrl;
+        window._lastMoreDataUrl = moreDataUrl;
+        const leftImg = document.getElementById('leftSlotImg');
+        const rightImg = document.getElementById('rightSlotImg');
+        leftImg.src = lessDataUrl;
+        leftImg.style.display = 'block';
+        rightImg.src = moreDataUrl;
+        rightImg.style.display = 'block';
 
     } catch (error) {
         console.error('Error evaluating with AI:', error);
-        feedback.textContent = 'Error: Could not connect to AI model. Please make sure the server is running.';
+        feedback.textContent = 'Error: Could not connect to AI model. ' + (error.message || 'Please make sure the server is running.');
         feedback.style.display = 'block';
     } finally {
         // Hide loading state

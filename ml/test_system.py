@@ -32,7 +32,7 @@ def image_to_base64(img):
 def test_server_health():
     """Test if the server is running"""
     try:
-        response = requests.get('http://localhost:5000/health')
+        response = requests.get('http://localhost:5001/health')
         if response.status_code == 200:
             data = response.json()
             print(f"✓ Server is running")
@@ -43,7 +43,7 @@ def test_server_health():
             print(f"✗ Server returned status code: {response.status_code}")
             return False
     except requests.exceptions.ConnectionError:
-        print("✗ Could not connect to server. Make sure it's running on http://localhost:5000")
+        print("✗ Could not connect to server. Make sure it's running on http://localhost:5001")
         return False
 
 def test_single_prediction():
@@ -54,7 +54,7 @@ def test_single_prediction():
         img_base64 = image_to_base64(test_img)
         
         # Send prediction request
-        response = requests.post('http://localhost:5000/predict', 
+        response = requests.post('http://localhost:5001/predict', 
                                json={'image': img_base64})
         
         if response.status_code == 200:
@@ -83,7 +83,7 @@ def test_multiple_predictions():
             test_images.append(img_base64)
         
         # Send multiple prediction request
-        response = requests.post('http://localhost:5000/predict_multiple', 
+        response = requests.post('http://localhost:5001/predict_multiple', 
                                json={'images': test_images})
         
         if response.status_code == 200:

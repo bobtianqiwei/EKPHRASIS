@@ -48,14 +48,14 @@ def main():
         sys.exit(1)
     
     print("Starting server...")
-    print("Server will be available at: http://localhost:5000")
+    print("Server will be available at: http://localhost:5001")
     print("Press Ctrl+C to stop the server")
     print("-" * 40)
     
-    # Start the server
+    # Start the server (5001: macOS often uses 5000 for AirPlay)
     try:
         from model_server import app
-        app.run(debug=True, port=5000, host='0.0.0.0')
+        app.run(debug=True, port=5001, host='0.0.0.0')
     except KeyboardInterrupt:
         print("\nServer stopped.")
     except Exception as e:

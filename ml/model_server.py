@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import numpy as np
 from tensorflow.keras.models import load_model
@@ -11,6 +11,9 @@ import tempfile
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Serve frontend from project interface/ folder (so user opens http://localhost:5001/)
+INTERFACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'interface')
 
 # Load the trained model
 # Note: You'll need to save your trained model first
@@ -129,5 +132,10 @@ def health():
     """
     return jsonify({"status": "healthy", "model_loaded": model is not None})
 
+@app.route('/')
+def index():
+    """Serve the frontend so user opens http://localhost:5001/ (no file://)."""
+    return send_from_directory(INTERFACE_DIR, 'interface.html')
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000) 
+    app.run(debug=True, port=5001) 

@@ -1,14 +1,31 @@
-# EKPHRASIS - Visual Composition Analysis System
+# EKPHRASIS - Generating Visual Aids for Graphic Design Education
 
-EKPHRASIS is an interactive system for creating and analyzing visual compositions using machine learning. Users can create compositions with geometric shapes and receive AI-powered feedback on visual harmony.
+EKPHRASIS is an interactive educational system that helps students understand graphic design language—such as "visual harmony"—by generating concrete visual aids from their own compositions. Users create a composition on a digital canvas; the system then provides "less" and "more" effective examples (relative to the chosen criterion) so learners can compare and refine their intuition.
+
+This repository accompanies the paper **"Generating Visual Aids to Help Students Understand Graphic Design with EKPHRASIS"** (CHI EA ’25).
+
+- **Paper (open access):** [https://doi.org/10.1145/3706599.3719807](https://doi.org/10.1145/3706599.3719807)
+
+## Citation
+
+If you use or build on EKPHRASIS, please cite our paper:
+
+```bibtex
+@inproceedings{wei2025generating,
+  title={Generating Visual Aids to Help Students Understand Graphic Design with EKPHRASIS},
+  author={Wei, Bob Tianqi and Shen, Shayne and Almeda, Shm Garanganao and Hartmann, Bjoern},
+  booktitle={Proceedings of the Extended Abstracts of the CHI Conference on Human Factors in Computing Systems},
+  pages={1--7},
+  year={2025}
+}
+```
 
 ## Features
 
 - **Interactive Canvas**: Draw and arrange rectangles in different shades of grey
-- **AI Analysis**: Machine learning model evaluates composition harmony
-- **Variation Generation**: Automatically creates 10 variations of your composition
-- **Score Comparison**: Shows best and worst performing variations
-- **Real-time Feedback**: Provides constructive feedback based on AI analysis
+- **Visual Aids**: ML-backed system generates "less" and "more" effective examples (e.g. less/more visual harmony) from your composition
+- **Variation Generation**: Automatically creates multiple variations; best and worst (relative to the criterion) are shown left/right of the canvas
+- **Educational Focus**: Supports associating design vocabulary with visual examples for learning
 
 ## System Architecture
 
@@ -48,18 +65,24 @@ python train_and_save_model.py
 python start_server.py
 ```
 
-The server will start on `http://localhost:5000`
+The server will start on `http://localhost:5001` (port 5001 is used to avoid conflict with macOS AirPlay on 5000).
 
 ### 2. Open the Interface
 
-Open `interface/interface.html` in your web browser.
+Open **http://localhost:5001/** in your browser (the backend serves the interface), or run from the project root:
 
-### 3. Create and Evaluate
+```bash
+python start_ekphrasis.py
+```
+
+to start the server and open the interface automatically.
+
+### 3. Create and Get Visual Aids
 
 1. Use the canvas to create a composition with rectangles
 2. Choose colors from the grey palette
-3. Click "Evaluate with AI" to analyze your composition
-4. View the results and feedback
+3. Click **"Generate visual aids"** to get less/more effective examples (e.g. less/more visual harmony)
+4. Compare the two images shown left and right of the canvas
 
 ## How It Works
 
@@ -77,10 +100,10 @@ Open `interface/interface.html` in your web browser.
 
 ### Workflow
 1. User creates composition on canvas
-2. System generates 10 variations with slight modifications
-3. All variations are sent to ML model for prediction
-4. Best and worst scores are displayed
-5. Constructive feedback is provided based on results
+2. System generates multiple variations with slight modifications
+3. All variations are sent to the ML model for prediction
+4. "Less" and "more" effective examples (e.g. less/more visual harmony) are shown left and right of the canvas
+5. Optional feedback text is shown when applicable
 
 ## API Endpoints
 
@@ -108,10 +131,10 @@ python test_system.py
 
 ### Common Issues
 
-1. **Server not starting**: Check if port 5000 is available
+1. **Server not starting**: Check if port 5001 is available (macOS may use 5000 for AirPlay)
 2. **Model not found**: Run training script first
-3. **Import errors**: Install dependencies with `pip install -r requirements.txt`
-4. **Frontend can't connect**: Ensure server is running on localhost:5000
+3. **Import errors**: Install dependencies with `pip install -r requirements.txt` and `pip install flask-cors`
+4. **Frontend can't connect**: Ensure server is running and open http://localhost:5001/
 
 ### Performance Notes
 
@@ -137,7 +160,7 @@ dataset/balance/Bob's classes/
 
 ## Credits
 
-EKPHRASIS by Bob Tianqi Wei, Shayne Shen, UC Berkeley, 2024
+EKPHRASIS by Bob Tianqi Wei, Shayne Shen, Shm Garanganao Almeda, and Bjoern Hartmann, UC Berkeley. CHI EA ’25.
 
 ## License
 

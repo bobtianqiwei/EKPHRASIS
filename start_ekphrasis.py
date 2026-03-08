@@ -25,13 +25,30 @@ def check_ml_dependencies():
     try:
         import tensorflow
         import flask
+        import flask_cors
         import numpy
         from PIL import Image
         print("✓ ML dependencies are installed")
         return True
     except ImportError as e:
         print(f"❌ Missing ML dependency: {e}")
-        print("Please run: pip install -r ml/requirements.txt")
+        return False
+
+def ensure_flask_cors():
+    """Install flask-cors if missing (common on fresh envs)."""
+    try:
+        import flask_cors
+        return True
+    except ImportError:
+        pass
+    print("Installing flask-cors...")
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "install", "flask-cors"],
+                      check=True, capture_output=True, text=True)
+        print("✓ flask-cors installed")
+        return True
+    except subprocess.CalledProcessError:
+        print("❌ Could not install flask-cors. Run: pip install flask-cors")
         return False
 
 def check_model_file():
@@ -61,7 +78,7 @@ def train_model():
     print("Training the ML model...")
     print("This may take several minutes...")
     try:
-        result = subprocess.run([sys.executable, "ml/train_and_save_model.py"], 
+        result = subprocess.run([sys.executable, "train_and_save_model.py"],
                               cwd="ml", check=True, capture_output=True, text=True)
         print("✓ Model training completed")
         return True
@@ -75,7 +92,7 @@ def start_server():
     print("Starting ML server...")
     try:
         # Start server in background
-        server_process = subprocess.Popen([sys.executable, "ml/start_server.py"], 
+        server_process = subprocess.Popen([sys.executable, "start_server.py"],
                                         cwd="ml", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
         # Wait a bit for server to start
@@ -94,15 +111,11 @@ def start_server():
         return None
 
 def open_interface():
-    """Open the web interface"""
-    interface_path = Path("interface/interface.html").absolute()
-    if interface_path.exists():
-        print(f"Opening interface: {interface_path}")
-        webbrowser.open(f"file://{interface_path}")
-        return True
-    else:
-        print(f"❌ Interface file not found: {interface_path}")
-        return False
+    """Open the web interface (served by backend at localhost:5001)."""
+    url = "http://localhost:5001/"
+    print(f"Opening interface: {url}")
+    webbrowser.open(url)
+    return True
 
 def main():
     print("EKPHRASIS System Launcher")
@@ -112,11 +125,14 @@ def main():
     if not check_python_version():
         sys.exit(1)
     
-    # Check ML dependencies
+    # Check ML dependencies (install flask-cors if only that is missing)
     if not check_ml_dependencies():
-        print("\nInstalling dependencies...")
-        if not install_dependencies():
-            sys.exit(1)
+        if ensure_flask_cors() and check_ml_dependencies():
+            pass
+        else:
+            print("\nInstalling dependencies...")
+            if not install_dependencies():
+                sys.exit(1)
     
     # Check model file
     if not check_model_file():
@@ -137,7 +153,7 @@ def main():
     print("\n" + "=" * 40)
     print("🎉 EKPHRASIS is now running!")
     print("\nSystem Status:")
-    print("  ✓ ML Server: http://localhost:5000")
+    print("  ✓ ML Server: http://localhost:5001")
     print("  ✓ Interface: interface/interface.html")
     print("\nUsage:")
     print("  1. Create a composition on the canvas")
