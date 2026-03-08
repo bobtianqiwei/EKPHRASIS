@@ -884,6 +884,10 @@ function applyMode() {
         actionRow.style.display = 'none';
         const vocabInput = document.getElementById('labelDataVocabulary');
         if (vocabInput) vocabInput.value = criterionSelect.value;
+        const labelerInput = document.getElementById('labelDataLabeler');
+        if (labelerInput && localStorage.getItem('ekphrasis_labeler') != null) {
+            labelerInput.value = localStorage.getItem('ekphrasis_labeler') || '';
+        }
         fetchLabelCounts();
         generateLabelDataImage();
         return;
@@ -1010,7 +1014,10 @@ criterionSelect.addEventListener('change', function () {
     }
 });
 document.getElementById('labelDataVocabulary').addEventListener('input', scheduleFetchLabelCounts);
-document.getElementById('labelDataLabeler').addEventListener('input', scheduleFetchLabelCounts);
+document.getElementById('labelDataLabeler').addEventListener('input', function () {
+    try { localStorage.setItem('ekphrasis_labeler', this.value); } catch (_) {}
+    scheduleFetchLabelCounts();
+});
 
 // Label Data: keyboard Left = 0, Right = 1; show pressed state on buttons
 function isLabelDataInput(el) {
