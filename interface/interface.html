@@ -181,9 +181,10 @@
             color: #888;
             text-align: center;
             margin-top: 8px;
-            min-height: 1.2em;
+            min-height: 24px;
+            width: 100%;
         }
-        .canvas-score-label.empty { display: none; }
+        .canvas-score-label.empty { visibility: hidden; }
         .canvas-wrapper { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
         .upper-section {
             display: flex;
@@ -279,7 +280,7 @@
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
-            margin: 12px 0;
+            margin: 12px 0 -20px 0;
             flex-shrink: 0;
             max-width: 1920px;
             width: 100%;
@@ -330,12 +331,23 @@
         .suggestion-box .preview-label {
             display: none;
             margin-top: 8px;
+            min-height: 24px;
             font-size: 12px;
             font-weight: 300;
             color: #888;
         }
         .suggestion-box.has-result .preview-label {
             display: block;
+        }
+        .suggestion-box.has-result .suggestion-box-image-wrap {
+            animation: suggestionImageFadeIn 0.5s ease-out;
+        }
+        .suggestion-box.has-result .suggestion-box-image-wrap img {
+            animation: suggestionImageFadeIn 0.5s ease-out;
+        }
+        @keyframes suggestionImageFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         .criterion-row {
             display: flex;
@@ -1245,6 +1257,19 @@ function clearCanvas() {
     clearRedoStack();
     renderRectangles();
     if (modeSelect.value === 'chess') setChessMessage('');
+    // Clear left/right reference images
+    const leftSlot = document.getElementById('leftSlot');
+    const rightSlot = document.getElementById('rightSlot');
+    const leftImg = document.getElementById('leftSlotImg');
+    const rightImg = document.getElementById('rightSlotImg');
+    leftSlot.classList.remove('has-result');
+    rightSlot.classList.remove('has-result');
+    leftImg.removeAttribute('src');
+    leftImg.style.display = 'none';
+    rightImg.removeAttribute('src');
+    rightImg.style.display = 'none';
+    window._lastLessDataUrl = null;
+    window._lastMoreDataUrl = null;
 }
 
 // Generate visual aids (run model, show less/more examples)
