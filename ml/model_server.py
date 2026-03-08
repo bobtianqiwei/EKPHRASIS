@@ -19,7 +19,7 @@ INTERFACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 # model_file is relative to the ml/ directory.
 CRITERIA = [
     {'id': 'visual_harmony', 'name': 'Visual Harmony', 'model_file': 'composition_model.h5'},
-    # Example for future: {'id': 'balance', 'name': 'Balance', 'model_file': 'balance_model.h5'},
+    {'id': 'visual_balance', 'name': 'Visual Balance', 'model_file': 'visual_balance_model.h5'},
 ]
 
 # Load all criterion models at startup (criterion_id -> Keras model)

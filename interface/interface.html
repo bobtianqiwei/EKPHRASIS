@@ -208,7 +208,7 @@
             cursor: pointer;
             border: 1px solid #ccc;
             background-color: #f0f0f0;
-            border-radius: 8px;
+            border-radius: 5px;
             font-size: 14px;
         }
         .button:disabled {
@@ -376,7 +376,7 @@
             flex-shrink: 0;
             min-width: 200px;
             border: 1px solid #ccc;
-            border-radius: 8px;
+            border-radius: 5px;
             background-color: #f0f0f0;
         }
         .evaluate-button .loading-spinner {
@@ -479,7 +479,7 @@
             <div class="upper-section">
                 <div class="prompt">
                     Create a composition with blocks in varying sizes and shades of grey.<br>
-                    Arrange them to achieve <strong>visual harmony</strong>, either spaced apart or overlapping.
+                    Arrange them to achieve <strong id="promptCriterionName">Visual Harmony</strong>, either spaced apart or overlapping.
                 </div>
 
                 <div class="controls">
@@ -684,7 +684,7 @@ feedback.style.display = 'none';
 function updateCriterionLabels() {
     const opt = criterionSelect.selectedOptions[0];
     const name = opt ? opt.textContent : 'Visual Harmony';
-    ['criterionNameSlot', 'criterionNameSlot2', 'criterionNameLess', 'criterionNameMore'].forEach(id => {
+    ['criterionNameSlot', 'criterionNameSlot2', 'criterionNameLess', 'criterionNameMore', 'promptCriterionName'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = name;
     });
