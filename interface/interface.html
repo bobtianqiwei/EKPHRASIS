@@ -717,7 +717,10 @@
                     <button type="button" id="labelDataBtn1" class="button label-data-btn" onclick="saveLabel('class_1')" style="min-width: 140px; padding: 12px; font-weight: 600;">Fits (1)</button>
                 </div>
                 <div style="font-size: 11px; color: #999; margin-top: 6px;">Use keyboard: ← 0, → 1</div>
-                <div id="labelDataCount" style="margin-top: 12px; font-size: 13px; color: #666;">Labels: 0 class_0, 0 class_1 (Total: 0)</div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+                    <span id="labelDataCount" style="font-size: 13px; color: #666;">Labels: 0 class_0, 0 class_1 (Total: 0)</span>
+                    <button type="button" class="button" id="labelDataBalanceBtn" style="font-size: 12px; padding: 6px 10px;">Balance (crop to equal)</button>
+                </div>
             </div>
             
             <div class="score-display" id="scoreDisplay" style="display: none;">
@@ -1017,6 +1020,31 @@ document.getElementById('labelDataVocabulary').addEventListener('input', schedul
 document.getElementById('labelDataLabeler').addEventListener('input', function () {
     try { localStorage.setItem('ekphrasis_labeler', this.value); } catch (_) {}
     scheduleFetchLabelCounts();
+});
+
+document.getElementById('labelDataBalanceBtn').addEventListener('click', async function () {
+    const vocabEl = document.getElementById('labelDataVocabulary');
+    const labelerEl = document.getElementById('labelDataLabeler');
+    const vocabulary = (vocabEl && vocabEl.value.trim()) || criterionSelect.value;
+    const labeler = (labelerEl && labelerEl.value.trim()) || 'unknown';
+    const btn = this;
+    btn.disabled = true;
+    try {
+        const res = await fetch(API_BASE + '/balance_labels', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vocabulary, labeler })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || res.statusText || 'Balance failed');
+        if (data.error) throw new Error(data.error);
+        labelDataCounts = data.counts || labelDataCounts;
+        updateLabelDataCountDisplay();
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally {
+        btn.disabled = false;
+    }
 });
 
 // Label Data: keyboard Left = 0, Right = 1; show pressed state on buttons

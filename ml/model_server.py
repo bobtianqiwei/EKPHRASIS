@@ -5,6 +5,7 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 import os
 import re
+import random
 import base64
 import tempfile
 import datetime
@@ -164,6 +165,51 @@ def save_label():
         c0_count = len([f for f in os.listdir(c0_dir) if f.endswith(('.png', '.jpg'))])
         c1_count = len([f for f in os.listdir(c1_dir) if f.endswith(('.png', '.jpg'))])
         
+        return jsonify({
+            "success": True,
+            "counts": {"class_0": c0_count, "class_1": c1_count, "total": c0_count + c1_count}
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/balance_labels', methods=['POST'])
+def balance_labels():
+    """
+    For dataset/new/{vocabulary}_{date}_{labeler}, randomly delete files from the
+    larger class until class_0 and class_1 counts are equal.
+    Expects JSON: { vocabulary: str, labeler: str }
+    """
+    try:
+        data = request.get_json() or {}
+        vocabulary = data.get('vocabulary') or data.get('criterion') or 'visual_balance'
+        labeler = data.get('labeler') or 'unknown'
+        project_root = os.path.dirname(INTERFACE_DIR)
+        dataset_dir = _label_folder_path(project_root, vocabulary, labeler)
+        c0_dir = os.path.join(dataset_dir, 'class_0')
+        c1_dir = os.path.join(dataset_dir, 'class_1')
+        if not os.path.isdir(c0_dir):
+            return jsonify({"error": "class_0 folder not found", "counts": {"class_0": 0, "class_1": 0, "total": 0}}), 400
+        if not os.path.isdir(c1_dir):
+            return jsonify({"error": "class_1 folder not found", "counts": {"class_0": 0, "class_1": 0, "total": 0}}), 400
+        c0_files = [f for f in os.listdir(c0_dir) if f.endswith(('.png', '.jpg'))]
+        c1_files = [f for f in os.listdir(c1_dir) if f.endswith(('.png', '.jpg'))]
+        c0_count, c1_count = len(c0_files), len(c1_files)
+        if c0_count > c1_count:
+            to_remove = random.sample(c0_files, c0_count - c1_count)
+            for f in to_remove:
+                try:
+                    os.unlink(os.path.join(c0_dir, f))
+                except Exception:
+                    pass
+        elif c1_count > c0_count:
+            to_remove = random.sample(c1_files, c1_count - c0_count)
+            for f in to_remove:
+                try:
+                    os.unlink(os.path.join(c1_dir, f))
+                except Exception:
+                    pass
+        c0_count = len([f for f in os.listdir(c0_dir) if f.endswith(('.png', '.jpg'))])
+        c1_count = len([f for f in os.listdir(c1_dir) if f.endswith(('.png', '.jpg'))])
         return jsonify({
             "success": True,
             "counts": {"class_0": c0_count, "class_1": c1_count, "total": c0_count + c1_count}
