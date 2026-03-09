@@ -483,11 +483,6 @@
         .modal-variation-params .modal-variation-desc { font-size: 13px; color: #666; margin-bottom: 10px; line-height: 1.4; }
         .modal-variation-params label { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
         .modal-variation-params input[type="number"] { width: 56px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
-        .modal-chess-target { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee; font-size: 14px; }
-        .modal-chess-target .modal-variation-title { font-weight: 600; color: #111; margin-bottom: 4px; }
-        .modal-chess-target .modal-variation-desc { font-size: 13px; color: #666; margin-bottom: 10px; line-height: 1.4; }
-        .modal-chess-target label { display: inline-flex; align-items: center; gap: 6px; }
-        .modal-chess-target input[type="number"] { width: 56px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
         .chess-control { display: flex; align-items: center; justify-content: center; gap: 8px; }
         .chess-control label { font-size: 13px; color: #333; }
         /* Match bottom bar: same size, font, stroke, radius */
@@ -650,11 +645,6 @@
                     <div class="modal-variation-desc">Each generated variant randomly shifts block position and scales block size within the ranges below.</div>
                     <label>Position &plusmn; <input type="number" id="variationPositionPx" min="1" max="200" value="25" title="Max position offset in pixels"> px</label>
                     <label>Scale <input type="number" id="variationScaleMin" min="10" max="100" value="80" title="Min scale %">% &ndash; <input type="number" id="variationScaleMax" min="50" max="200" value="120" title="Max scale %">%</label>
-                </div>
-                <div class="modal-chess-target">
-                    <div class="modal-variation-title">Chess mode</div>
-                    <div class="modal-variation-desc">When the model score reaches this percentage, the game shows the goal-reached message.</div>
-                    <label>Target score <input type="number" id="chessTargetScorePct" min="1" max="100" value="63.9" step="0.1" title="Target score %">%</label>
                 </div>
             </div>
         </div>
@@ -872,8 +862,8 @@ function updateSlotLabelScores() {
     const rightScoreEl = document.getElementById('rightSlotScore');
     if (!leftScoreEl || !rightScoreEl) return;
     if (showModelScores && window._lastLessPct != null && window._lastMorePct != null) {
-        leftScoreEl.textContent = ' ' + window._lastLessPct + '%';
-        rightScoreEl.textContent = ' ' + window._lastMorePct + '%';
+        leftScoreEl.textContent = ' ' + window._lastLessPct + '%' + (window._lastLessClass ? ' (' + window._lastLessClass + ')' : '');
+        rightScoreEl.textContent = ' ' + window._lastMorePct + '%' + (window._lastMoreClass ? ' (' + window._lastMoreClass + ')' : '');
     } else {
         leftScoreEl.textContent = '';
         rightScoreEl.textContent = '';
@@ -881,7 +871,7 @@ function updateSlotLabelScores() {
     const canvasScoreEl = document.getElementById('canvasScoreLabel');
     if (canvasScoreEl) {
         if (showModelScores && window._lastUserPct != null) {
-            canvasScoreEl.textContent = 'Your composition: ' + window._lastUserPct + '%';
+            canvasScoreEl.textContent = 'Your composition: ' + window._lastUserPct + '%' + (window._lastUserClass ? ' (' + window._lastUserClass + ')' : '');
             canvasScoreEl.classList.remove('empty');
         } else {
             canvasScoreEl.textContent = '';
@@ -1351,9 +1341,7 @@ const greyColors = ['#D9D9D9', '#9C9C9C', '#535353', '#323131', '#000000'];
 let chessComputerThinking = false;
 
 function getChessTargetScore() {
-    const el = document.getElementById('chessTargetScorePct');
-    const n = el ? parseFloat(el.value) : 63.9;
-    return (isNaN(n) || n < 1 || n > 100 ? 63.9 : n) / 100;
+    return 0.5;
 }
 
 function setChessMessage(text) {
@@ -1398,7 +1386,7 @@ function chessRunModel() {
 function showChessGoalReached(score) {
     const name = criterionSelect.selectedOptions[0] ? criterionSelect.selectedOptions[0].textContent : 'the goal';
     let msg = 'You seem to have reached ' + name + '. What do you think?';
-    if (showModelScores && score != null) msg += ' (' + (score * 100).toFixed(1) + '%)';
+    if (showModelScores && score != null) msg += ' (' + (score * 100).toFixed(1) + '% More)';
     setChessMessage(msg);
 }
 
@@ -1411,7 +1399,10 @@ async function scheduleChessAfterUserMove() {
             showChessGoalReached(score);
             return;
         }
-        if (showModelScores) setChessMessage('Score: ' + (score * 100).toFixed(1) + '%');
+        if (showModelScores) {
+            const cls = score >= 0.5 ? 'More' : 'Less';
+            setChessMessage('Score: ' + (score * 100).toFixed(1) + '% (' + cls + ')');
+        } else setChessMessage('');
         await computerTurn();
     } catch (e) {
         setChessMessage('Error: ' + (e.message || 'Could not reach ML server.'));
@@ -1429,27 +1420,36 @@ async function computerTurn() {
             clearRedoStack();
             renderRectanglesWithFadeIn(rectangles.length - 1, 500);
         } else {
-            const candidateBlocks = [];
-            for (let i = 0; i < 20; i++) candidateBlocks.push(generateRandomBlock());
-            const images = candidateBlocks.map(block => generateImageAsBase64([...rectangles, block]));
             const criterion = criterionSelect.value;
-            const res = await fetch(API_BASE + '/predict_multiple', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ criterion: criterion, images: images })
-            }).then(r => r.json());
-            if (res.error) throw new Error(res.error);
-            const idx = strategy === 'help' ? res.best.index : res.worst.index;
+            let res;
+            let candidateBlocks = [];
+            const maxAttempts = 10;
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                candidateBlocks = [];
+                for (let i = 0; i < 20; i++) candidateBlocks.push(generateRandomBlock());
+                const images = candidateBlocks.map(block => generateImageAsBase64([...rectangles, block]));
+                res = await fetch(API_BASE + '/predict_multiple', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ criterion: criterion, images: images })
+                }).then(r => r.json());
+                if (res.error) throw new Error(res.error);
+                if (res.best_class_0 && res.best_class_1) break;
+            }
+            const idx = strategy === 'help'
+                ? (res.best_class_1 ? res.best_class_1.index : (res.best ? res.best.index : 0))
+                : (res.best_class_0 ? res.best_class_0.index : (res.worst ? res.worst.index : 0));
             const chosen = candidateBlocks[idx];
             rectangles.push(chosen);
             clearRedoStack();
             renderRectanglesWithFadeIn(rectangles.length - 1, 500);
         }
         const score = await chessRunModel();
-        if (score >= getChessTargetScore()) {
+        if (score >= 0.5) {
             showChessGoalReached(score);
         } else if (showModelScores) {
-            setChessMessage('Score: ' + (score * 100).toFixed(1) + '%');
+            const cls = score >= 0.5 ? 'More' : 'Less';
+            setChessMessage('Score: ' + (score * 100).toFixed(1) + '% (' + cls + ')');
         } else {
             setChessMessage('');
         }
@@ -1741,7 +1741,6 @@ async function evaluateWithAI() {
         return;
     }
 
-    // Show loading state inside button (spinner + "Generating")
     document.getElementById('evaluateBtnSpinner').classList.add('show');
     document.getElementById('evaluateBtnText').textContent = 'Generating';
     feedback.style.display = 'none';
@@ -1749,47 +1748,66 @@ async function evaluateWithAI() {
     evaluateBtn.disabled = true;
 
     try {
-        // Build list: user canvas (index 0) + 20 variations
-        const variations = [];
-        for (let i = 0; i < 20; i++) {
-            variations.push(createVariation(rectangles));
-        }
-        const allVariations = [rectangles, ...variations];
-        const images = allVariations.map(r => generateImageAsBase64(r));
-
-        // Send to ML model server (criterion = selected vocabulary, e.g. visual_balance)
         const criterion = criterionSelect.value;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-        const response = await fetch(API_BASE + '/predict_multiple', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ criterion: criterion, images: images }),
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        let result;
+        let allVariations = [rectangles];
+        const maxAttempts = 10;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const variations = [];
+            for (let i = 0; i < 20; i++) {
+                variations.push(createVariation(rectangles));
+            }
+            allVariations = [rectangles, ...variations];
+            const images = allVariations.map(r => generateImageAsBase64(r));
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch(API_BASE + '/predict_multiple', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ criterion: criterion, images: images }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            result = await response.json();
+            if (result.error) throw new Error(result.error);
+            if (result.best_class_0 && result.best_class_1) break;
         }
 
-        const result = await response.json();
-
-        if (result.error) {
-            throw new Error(result.error);
+        let lessIndex, moreIndex, lessPct, morePct, lessClass, moreClass;
+        if (result.best_class_0 && result.best_class_1) {
+            lessIndex = result.best_class_0.index;
+            moreIndex = result.best_class_1.index;
+            lessPct = result.best_class_0.confidence;
+            morePct = result.best_class_1.confidence;
+            lessClass = 'Less';
+            moreClass = 'More';
+        } else {
+            const all = result.all_results || [];
+            const lowest = all.length ? all.reduce((min, r) => r.confidence < min.confidence ? r : min) : null;
+            if (result.best_class_0) {
+                lessIndex = result.best_class_0.index;
+                lessPct = result.best_class_0.confidence;
+                lessClass = 'Less';
+                moreIndex = lowest ? lowest.index : result.best_class_0.index;
+                morePct = lowest ? lowest.confidence : lessPct;
+                moreClass = 'More';
+            } else if (result.best_class_1) {
+                moreIndex = result.best_class_1.index;
+                morePct = result.best_class_1.confidence;
+                moreClass = 'More';
+                lessIndex = lowest ? lowest.index : result.best_class_1.index;
+                lessPct = lowest ? lowest.confidence : morePct;
+                lessClass = 'Less';
+            } else {
+                throw new Error('No valid predictions.');
+            }
         }
 
-        // Display results
-        document.getElementById('lessScore').textContent = (result.worst.confidence * 100).toFixed(1) + '%';
-        document.getElementById('moreScore').textContent = (result.best.confidence * 100).toFixed(1) + '%';
-        // Score display hidden per design; uncomment next line to show scores: scoreDisplay.style.display = 'flex';
+        document.getElementById('lessScore').textContent = (lessPct * 100).toFixed(1) + '%';
+        document.getElementById('moreScore').textContent = (morePct * 100).toFixed(1) + '%';
 
-        // Generate feedback based on scores
-        const moreScore = result.best.confidence;
-        const lessScore = result.worst.confidence;
-        
+        const moreScore = morePct;
         let feedbackText = '';
         if (moreScore > 0.8) {
             feedbackText = 'Excellent composition! Your design shows strong visual harmony. The AI model recognizes the balanced arrangement of elements.';
@@ -1798,20 +1816,23 @@ async function evaluateWithAI() {
         } else {
             feedbackText = 'The composition could be improved. Try experimenting with different arrangements, sizes, and positions of elements to achieve better balance.';
         }
-        
         feedback.textContent = feedbackText;
         feedback.style.display = feedbackText ? 'block' : 'none';
 
-        // User canvas score (index 0 in allVariations)
         const userResult = result.all_results && result.all_results.find(r => r.index === 0);
         window._lastUserPct = userResult ? (userResult.confidence * 100).toFixed(1) : null;
+        window._lastUserClass = userResult ? (userResult.class === 'class_1' ? 'More' : 'Less') : null;
 
-        // Left = Less [criterion], Right = More [criterion] (indices into allVariations: 0 = user, 1..20 = variations)
         const previewSize = 375;
-        const lessDataUrl = generateImageDataUrl(allVariations[result.worst.index], previewSize);
-        const moreDataUrl = generateImageDataUrl(allVariations[result.best.index], previewSize);
+        const lessDataUrl = generateImageDataUrl(allVariations[lessIndex], previewSize);
+        const moreDataUrl = generateImageDataUrl(allVariations[moreIndex], previewSize);
         window._lastLessDataUrl = lessDataUrl;
         window._lastMoreDataUrl = moreDataUrl;
+        window._lastLessPct = (lessPct * 100).toFixed(1);
+        window._lastMorePct = (morePct * 100).toFixed(1);
+        window._lastLessClass = lessClass;
+        window._lastMoreClass = moreClass;
+
         const leftImg = document.getElementById('leftSlotImg');
         const rightImg = document.getElementById('rightSlotImg');
         leftImg.src = lessDataUrl;
@@ -1820,8 +1841,6 @@ async function evaluateWithAI() {
         rightImg.style.display = 'block';
         document.getElementById('leftSlot').classList.add('has-result');
         document.getElementById('rightSlot').classList.add('has-result');
-        window._lastLessPct = (result.worst.confidence * 100).toFixed(1);
-        window._lastMorePct = (result.best.confidence * 100).toFixed(1);
         updateSlotLabelScores();
 
     } catch (error) {

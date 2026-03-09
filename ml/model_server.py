@@ -220,8 +220,9 @@ def balance_labels():
 @app.route('/predict_multiple', methods=['POST'])
 def predict_multiple():
     """
-    API endpoint to predict multiple images and return best/worst scores.
-    Expects JSON with 'images' (base64 array) and optional 'criterion' (e.g. 'visual_balance').
+    Predict multiple images. Returns best_class_0 (highest confidence among class_0),
+    best_class_1 (highest confidence among class_1), and all_results.
+    Less = best_class_0, More = best_class_1. If no result in a class, that key is null.
     """
     try:
         data = request.get_json()
@@ -245,23 +246,19 @@ def predict_multiple():
         if not results:
             return jsonify({"error": "No valid predictions"}), 400
         
-        # Sort by confidence score
-        results.sort(key=lambda x: x['confidence'], reverse=True)
+        class_0_results = [r for r in results if r.get('class') == 'class_0']
+        class_1_results = [r for r in results if r.get('class') == 'class_1']
+        best_class_0 = max(class_0_results, key=lambda x: x['confidence']) if class_0_results else None
+        best_class_1 = max(class_1_results, key=lambda x: x['confidence']) if class_1_results else None
         
-        best_result = results[0]
-        worst_result = results[-1]
+        def to_item(r):
+            return {"index": r['index'], "confidence": r['confidence'], "class": r['class']}
         
         return jsonify({
-            "best": {
-                "index": best_result['index'],
-                "confidence": best_result['confidence'],
-                "class": best_result['class']
-            },
-            "worst": {
-                "index": worst_result['index'],
-                "confidence": worst_result['confidence'],
-                "class": worst_result['class']
-            },
+            "best_class_0": to_item(best_class_0) if best_class_0 else None,
+            "best_class_1": to_item(best_class_1) if best_class_1 else None,
+            "best": to_item(best_class_1) if best_class_1 else None,
+            "worst": to_item(best_class_0) if best_class_0 else None,
             "all_results": results
         })
         
