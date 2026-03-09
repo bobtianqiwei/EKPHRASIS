@@ -592,8 +592,9 @@
         }
         .feedback {
             width: 500px;
+            max-width: 90vw;
             text-align: center;
-            margin-bottom: 40px;
+            margin: 0 auto 40px;
             line-height: 1.6;
             color: #333;
             font-size: 13px;
@@ -939,6 +940,21 @@ function applyMode() {
         return;
     } else {
         actionRow.style.display = 'flex';
+    }
+
+    // Feedback text and left/right reference images only in Visual Aids mode
+    const leftSlot = document.getElementById('leftSlot');
+    const rightSlot = document.getElementById('rightSlot');
+    const leftSlotImg = document.getElementById('leftSlotImg');
+    const rightSlotImg = document.getElementById('rightSlotImg');
+    if (mode === 'visual_aids') {
+        if (feedback) feedback.style.display = feedback.textContent ? 'block' : 'none';
+    } else {
+        if (leftSlot) leftSlot.classList.remove('has-result');
+        if (rightSlot) rightSlot.classList.remove('has-result');
+        if (leftSlotImg) leftSlotImg.style.display = 'none';
+        if (rightSlotImg) rightSlotImg.style.display = 'none';
+        if (feedback) feedback.style.display = 'none';
     }
 
     if (mode === 'canvas') {
