@@ -517,9 +517,9 @@
         .test-model-upload input[type="file"] { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
         .test-model-filename { font-size: 12px; color: #888; margin-bottom: 16px; min-height: 18px; text-align: center; }
         .test-model-results { display: grid; grid-template-columns: repeat(auto-fill, 160px); gap: 16px; justify-content: center; width: 100%; box-sizing: border-box; }
-        .test-model-card { width: 160px; border: 1px solid #ccc; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
-        .test-model-card img { display: block; width: 160px; height: 160px; object-fit: contain; background: #f5f5f5; }
-        .test-model-card .score { padding: 4px 0 0; font-size: 12px; color: #888; }
+        .test-model-card { width: 160px; display: flex; flex-direction: column; align-items: center; }
+        .test-model-card img { display: block; width: 160px; height: 160px; object-fit: contain; border: 1px solid #ccc; background: #f5f5f5; box-sizing: border-box; }
+        .test-model-card .score { margin-top: 6px; font-size: 12px; color: #888; text-align: center; width: 100%; }
         .test-model-error { color: #c00; padding: 12px; }
         .criterion-label {
             font-size: 14px;
