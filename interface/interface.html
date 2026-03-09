@@ -79,6 +79,19 @@
         }
         .topbar.bottombar .criterion-select { min-width: 100px; }
         .topbar.bottombar .backend-status-btn { background: #fff; }
+        .topbar.bottombar .study-mode-select,
+        .topbar.bottombar .study-user-input {
+            padding: 4px 8px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            min-height: 26px;
+            box-sizing: border-box;
+        }
+        .topbar.bottombar .study-mode-select { min-width: 72px; }
+        .topbar.bottombar .study-user-input { min-width: 72px; width: 76px; }
+        .topbar.bottombar .study-user-wrap { display: none; align-items: center; gap: 6px; }
+        .topbar.bottombar .study-user-wrap.show { display: flex; }
         .about-modal-overlay {
             display: none;
             position: fixed;
@@ -137,6 +150,7 @@
             display: flex;
             justify-content: flex-end;
             align-items: center;
+            gap: 8px;
             min-width: 0;
         }
         .topbar-center .criterion-label { margin: 0; font-size: 13px; color: #333; }
@@ -486,6 +500,9 @@
         .modal-variation-params .modal-variation-desc { font-size: 13px; color: #666; margin-bottom: 10px; line-height: 1.4; }
         .modal-variation-params label { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
         .modal-variation-params input[type="number"] { width: 45px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
+        .modal-reset-row { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee; }
+        .modal-reset-btn { padding: 6px 12px; font-size: 12px; border: 1px solid #ccc; border-radius: 6px; background: #f5f5f5; cursor: pointer; color: #333; }
+        .modal-reset-btn:hover { background: #eee; }
         .chess-control { display: flex; align-items: center; justify-content: center; gap: 8px; }
         .chess-control label { font-size: 13px; color: #333; }
         /* Match bottom bar: same size, font, stroke, radius */
@@ -704,6 +721,9 @@
                     <div class="modal-variation-desc">In Chess mode, &quot;You seem to have reached [criterion]&quot; is shown when the model confidence (More) is at least this value.</div>
                     <label>Reached at <input type="number" id="chessReachedThresholdPct" min="1" max="100" value="80" title="Percentage (1–100)">%</label>
                 </div>
+                <div class="modal-reset-row">
+                    <button type="button" id="statusModalResetBtn" class="modal-reset-btn">Reset mode &amp; username</button>
+                </div>
             </div>
         </div>
         <div id="aboutModalOverlay" class="about-modal-overlay">
@@ -865,14 +885,22 @@
                 </select>
             </div>
             <div class="topbar-center">
+                <span class="study-user-wrap" id="studyUserWrap">
+                    <label for="studyUserInput" class="criterion-label">User:</label>
+                    <input type="text" id="studyUserInput" class="study-user-input" placeholder="username" maxlength="80">
+                </span>
                 <label for="criterionSelect" class="criterion-label">Practice vocabulary:</label>
                 <select id="criterionSelect" class="criterion-select">
                     <option value="visual_balance">Visual Balance</option>
                 </select>
             </div>
             <div class="topbar-right" style="position: relative;">
+                <select id="studyModeSelect" class="study-mode-select" title="Demo: no logging. Study: record to dataset/study/">
+                    <option value="demo" selected>Demo</option>
+                    <option value="study">Study</option>
+                </select>
                 <button type="button" class="backend-status-btn" id="serverStatusBtn" title="Click for details">
-                    <span id="serverStatusText" class="status-text">Checking...</span>
+                    <span id="serverStatusText" class="status-text">ML</span>
                     <span class="status-dot checking" id="serverStatusDot"></span>
                 </button>
                 <div id="statusToast" class="status-toast" aria-live="polite"></div>
@@ -920,6 +948,10 @@ const aboutModalClose = document.getElementById('aboutModalClose');
 let showModelScores = false;
 // Chess: confidence threshold (0–1) to show "reached [criterion]". Default 80%.
 let chessTargetScorePercent = 0.8;
+// Study mode: composition counters per mode for filename n; current chess round n for result.
+let studyCompositionCountV = 0;
+let studyCompositionCountC = 0;
+let studyChessCurrentN = 0;
 window._lastLessPct = null;
 window._lastMorePct = null;
 
@@ -959,6 +991,99 @@ if (chessReachedThresholdPctEl) {
             chessTargetScorePercent = pct / 100;
         }
     });
+}
+const studyModeSelect = document.getElementById('studyModeSelect');
+const studyUserWrap = document.getElementById('studyUserWrap');
+function updateStudyUI() {
+    if (studyUserWrap) studyUserWrap.classList.toggle('show', studyModeSelect && studyModeSelect.value === 'study');
+}
+if (studyModeSelect) {
+    studyModeSelect.addEventListener('change', updateStudyUI);
+}
+updateStudyUI();
+
+const STORAGE_STUDY_MODE = 'ekphrasis_study_mode';
+const STORAGE_APP_MODE = 'ekphrasis_app_mode';
+const STORAGE_USERNAME = 'ekphrasis_username';
+
+function restoreFromStorage() {
+    try {
+        const savedStudy = localStorage.getItem(STORAGE_STUDY_MODE);
+        if (savedStudy === 'demo' || savedStudy === 'study') {
+            if (studyModeSelect) studyModeSelect.value = savedStudy;
+        }
+        const savedMode = localStorage.getItem(STORAGE_APP_MODE);
+        if (savedMode && modeSelect) {
+            const opts = Array.from(modeSelect.options).map(o => o.value);
+            if (opts.includes(savedMode)) modeSelect.value = savedMode;
+        }
+        const savedUser = localStorage.getItem(STORAGE_USERNAME);
+        if (savedUser != null) {
+            const el = document.getElementById('studyUserInput');
+            if (el) el.value = savedUser;
+        }
+        updateStudyUI();
+    } catch (_) {}
+}
+
+function saveStudyMode() {
+    try {
+        if (studyModeSelect) localStorage.setItem(STORAGE_STUDY_MODE, studyModeSelect.value);
+    } catch (_) {}
+}
+function saveAppMode() {
+    try {
+        if (modeSelect) localStorage.setItem(STORAGE_APP_MODE, modeSelect.value);
+    } catch (_) {}
+}
+function saveUsername() {
+    try {
+        const el = document.getElementById('studyUserInput');
+        if (el) localStorage.setItem(STORAGE_USERNAME, (el.value || '').trim());
+    } catch (_) {}
+}
+
+if (studyModeSelect) studyModeSelect.addEventListener('change', saveStudyMode);
+if (modeSelect) modeSelect.addEventListener('change', saveAppMode);
+const studyUserInputEl = document.getElementById('studyUserInput');
+if (studyUserInputEl) studyUserInputEl.addEventListener('input', saveUsername);
+
+document.getElementById('statusModalResetBtn').addEventListener('click', function () {
+    try {
+        localStorage.removeItem(STORAGE_STUDY_MODE);
+        localStorage.removeItem(STORAGE_APP_MODE);
+        localStorage.removeItem(STORAGE_USERNAME);
+    } catch (_) {}
+    if (studyModeSelect) studyModeSelect.value = 'demo';
+    if (modeSelect) modeSelect.value = 'visual_aids';
+    if (studyUserInputEl) studyUserInputEl.value = '';
+    updateStudyUI();
+    applyMode();
+});
+
+function getStudyUsername() {
+    const el = document.getElementById('studyUserInput');
+    return (el && el.value.trim()) || '';
+}
+function isStudyMode() {
+    return studyModeSelect && studyModeSelect.value === 'study';
+}
+function getStudyTimestamp() {
+    const d = new Date();
+    return d.toISOString().replace(/[-:T]/g, '').slice(0, 15).replace(/(\d{8})(\d{6})/, '$1-$2');
+}
+async function saveStudyImage(username, filename, imageDataUrl) {
+    try {
+        const res = await fetch(API_BASE + '/save_study', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, filename, image: imageDataUrl })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Save failed');
+    } catch (e) {
+        console.error('Study save failed:', e);
+    }
 }
 
 // About modal: click EKPHRASIS to show project description and paper link
@@ -1060,6 +1185,7 @@ function applyMode() {
     }
 }
 modeSelect.addEventListener('change', applyMode);
+restoreFromStorage();
 applyMode();
 
 // Label Data mode state
@@ -1397,7 +1523,6 @@ populateCriterionDropdown();
 // Check backend on load; update status button (text + dot). Details in modal when button is clicked.
 function checkServer(silent) {
     if (!silent) {
-        serverStatusText.textContent = 'Checking...';
         serverStatusDot.className = 'status-dot checking';
     }
     statusModal.classList.remove('ok', 'error');
@@ -1406,13 +1531,11 @@ function checkServer(silent) {
     fetch(API_BASE + '/health', { method: 'GET' })
         .then(r => r.json())
         .then(data => {
-            serverStatusText.textContent = 'ML';
             serverStatusDot.className = 'status-dot connected';
             statusModal.className = 'status-modal ok';
             statusModalBody.innerHTML = 'Server is running. You can generate visual aids.';
         })
         .catch(() => {
-            serverStatusText.textContent = '后端没连接';
             serverStatusDot.className = 'status-dot disconnected';
             statusModal.className = 'status-modal error';
             const projectRoot = document.location.pathname.replace(/\/interface\/.*$/, '');
@@ -1525,6 +1648,18 @@ async function scheduleChessAfterUserMove() {
             showChessGoalReached(score);
             return;
         }
+        if (isStudyMode()) {
+            const user = getStudyUsername();
+            if (user) {
+                const n = ++studyCompositionCountC;
+                studyChessCurrentN = n;
+                const ts = getStudyTimestamp();
+                const cls = score >= 0.5 ? 'more' : 'less';
+                const scoreStr = (score * 100).toFixed(1);
+                const imgB64 = generateImageAsBase64(rectangles);
+                saveStudyImage(user, `${user}-chess-composition-${n}-${ts}-${cls}-${scoreStr}.png`, imgB64);
+            }
+        }
         if (showModelScores) {
             const cls = score >= 0.5 ? 'More' : 'Less';
             setChessMessage('Score: ' + (score * 100).toFixed(1) + '% (' + cls + ')');
@@ -1578,6 +1713,16 @@ async function computerTurn() {
             setChessMessage('Score: ' + (score * 100).toFixed(1) + '% (' + cls + ')');
         } else {
             setChessMessage('');
+        }
+        if (isStudyMode()) {
+            const user = getStudyUsername();
+            if (user && studyChessCurrentN > 0) {
+                const ts = getStudyTimestamp();
+                const cls = score >= 0.5 ? 'more' : 'less';
+                const scoreStr = (score * 100).toFixed(1);
+                const imgB64 = generateImageAsBase64(rectangles);
+                saveStudyImage(user, `${user}-chess-result-${studyChessCurrentN}-${ts}-${cls}-${scoreStr}.png`, imgB64);
+            }
         }
     } catch (e) {
         setChessMessage('Error: ' + (e.message || 'Could not reach ML server.'));
@@ -1965,6 +2110,24 @@ async function evaluateWithAI() {
         document.getElementById('leftSlot').classList.add('has-result');
         document.getElementById('rightSlot').classList.add('has-result');
         updateSlotLabelScores();
+
+        if (isStudyMode()) {
+            const user = getStudyUsername();
+            if (user) {
+                const n = ++studyCompositionCountV;
+                const ts = getStudyTimestamp();
+                const userCls = userResult && userResult.class === 'class_1' ? 'more' : 'less';
+                const userScore = userResult ? (userResult.confidence * 100).toFixed(1) : '0';
+                const lessScore = (lessPct * 100).toFixed(1);
+                const moreScore = (morePct * 100).toFixed(1);
+                const compB64 = generateImageAsBase64(allVariations[0]);
+                const lessB64 = generateImageAsBase64(allVariations[lessIndex]);
+                const moreB64 = generateImageAsBase64(allVariations[moreIndex]);
+                saveStudyImage(user, `${user}-v-composition-${n}-${ts}-${userCls}-${userScore}.png`, compB64);
+                saveStudyImage(user, `${user}-v-visualaids-less-${n}-${ts}-${lessScore}.png`, lessB64);
+                saveStudyImage(user, `${user}-v-visualaids-more-${n}-${ts}-${moreScore}.png`, moreB64);
+            }
+        }
 
     } catch (error) {
         console.error('Error evaluating with AI:', error);

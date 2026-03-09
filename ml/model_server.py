@@ -104,6 +104,18 @@ def _sanitize_for_folder(s):
     s = re.sub(r'[^\w\-]', '_', s)
     return s[:80] or 'unknown'
 
+def _sanitize_study_filename(name):
+    """Allow only alphanumeric, hyphen, underscore, dot for study filenames (no path traversal)."""
+    if not name or '..' in name or '/' in name or '\\' in name:
+        return None
+    s = re.sub(r'[^\w\-.]', '_', name)
+    return s[:120] if s else None
+
+def _study_user_dir(project_root, username):
+    """Path: dataset/study/{username}/"""
+    user = _sanitize_for_folder(username)
+    return os.path.join(project_root, 'dataset', 'study', user)
+
 def _label_folder_path(project_root, vocabulary, labeler):
     """Path: dataset/new/{vocabulary}_{date}_{labeler}"""
     date_str = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -214,6 +226,36 @@ def balance_labels():
             "success": True,
             "counts": {"class_0": c0_count, "class_1": c1_count, "total": c0_count + c1_count}
         })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/save_study', methods=['POST'])
+def save_study():
+    """
+    Save a study recording image to dataset/study/{username}/{filename}.
+    Expects JSON: { username: str, filename: str, image: base64 or data URL }
+    Creates dataset/study/{username}/ if needed. Filename must be safe (no path traversal).
+    """
+    try:
+        data = request.get_json()
+        username = (data.get('username') or '').strip()
+        filename = data.get('filename')
+        image_b64 = data.get('image')
+        if not username or not filename or not image_b64:
+            return jsonify({"error": "Missing username, filename, or image"}), 400
+        safe_filename = _sanitize_study_filename(filename)
+        if not safe_filename or not safe_filename.endswith(('.png', '.jpg')):
+            return jsonify({"error": "Invalid filename"}), 400
+        project_root = os.path.dirname(INTERFACE_DIR)
+        user_dir = _study_user_dir(project_root, username)
+        os.makedirs(user_dir, exist_ok=True)
+        filepath = os.path.join(user_dir, safe_filename)
+        if ',' in image_b64:
+            image_b64 = image_b64.split(',', 1)[1]
+        image_data = base64.b64decode(image_b64)
+        with open(filepath, 'wb') as f:
+            f.write(image_data)
+        return jsonify({"success": True, "path": filepath})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
