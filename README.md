@@ -22,9 +22,11 @@ This repository accompanies the paper **“Generating Visual Aids to Help Studen
 
 - **Canvas** – Draw and arrange grey rectangles; undo/redo, export.
 - **Visual Aids** – Generate “less” and “more” examples for the selected criterion. Left = highest-confidence **class_0** (Less), right = highest-confidence **class_1** (More). If only one class appears after several tries, the other slot shows the lowest-confidence variant. Feedback text and reference images are shown only in this mode.
-- **Chess** – Turn-based: you add a block, then the computer adds one. Computer strategies: **Help** (picks highest-confidence class_1), **Oppose** (highest-confidence class_0), **Random**. Goal reached when model confidence ≥ 0.5 (class_1).
+- **Chess** – Turn-based: you add a block, then the computer adds one. Computer strategies: **Help** (picks highest-confidence class_1), **Oppose** (highest-confidence class_0), **Random**. “Reached” threshold is configurable in the ML status modal (default 80%).
 - **Test Model** – Upload images or use `dataset/test_images`; run the current criterion and see image + score (e.g. “45.2% More”) per result.
 - **Label Data** – Label random compositions as “does not fit” (0) or “fits” (1). Saves to `dataset/new/{vocabulary}_{date}_{labeler}/class_0|class_1`. Optional **Crop Dataset** to balance classes; keyboard ← / → for 0 / 1; labeler name cached in browser.
+- **Demo vs Study** – Bottom bar: **Demo** (no logging) or **Study**. In Study mode, a **User** field appears; compositions and system feedback (Visual Aids less/more, Chess composition and result) are saved under `dataset/study/{username}/` with timestamped filenames. Useful for HCI experiments.
+- **Persistent state** – Mode, Demo/Study choice, and username are stored in the browser (localStorage). Refresh keeps the same state. **Reset mode & username** in the ML status modal clears this cache.
 
 ## System architecture
 
@@ -42,6 +44,7 @@ EKPHRASIS/
 ├── dataset/
 │   ├── <vocabulary_id>/  # Training data: class_0/, class_1/ (e.g. visual_balance/)
 │   ├── new/              # New labels: <vocabulary>_<date>_<labeler>/class_0|class_1
+│   ├── study/            # Study recordings: <username>/*.png (when using Study mode)
 │   └── test_images/      # Images for Test Model “Run dataset/test_images”
 ├── start_ekphrasis.py    # Optional: start server and open browser
 └── README.md
@@ -72,7 +75,9 @@ python start_ekphrasis.py
 
 - **Practice vocabulary** (bottom bar): choose the criterion (e.g. Visual Balance).
 - **Mode** (bottom bar): Canvas, Visual Aids, Chess, Test Model, Label Data.
-- In **Visual Aids**: draw, click “Generate visual aids”; left/right show Less and More examples; feedback appears below when applicable.
+- **Demo / Study** (bottom bar, left of ML): Demo = no logging; Study = record to `dataset/study/{username}/`. In Study, enter **User** (username); each Generate (Visual Aids) or move (Chess) saves composition and system feedback with timestamped filenames.
+- **ML status** (bottom bar): Button always shows “ML”; dot color indicates state (green = connected, yellow = disconnected, gray = checking). Click to open modal (server message, model info, variation range, Chess reached threshold, Show model scores, **Reset mode & username**).
+- In **Visual Aids**: draw, click “Generate visual aids”; left/right show Less and More examples; feedback in the message area when applicable.
 - In **Label Data**: set Vocabulary and Labeler (labeler is cached); use buttons or ← / → to label; optionally “Crop Dataset” to balance classes.
 
 **Requirements:** Python 3.7+, browser, ~4GB+ RAM for the model.
@@ -82,8 +87,8 @@ python start_ekphrasis.py
 ### Frontend (`interface/interface.html`)
 
 - Single HTML file: canvas, mode-specific UI, modals (settings, about, backend status).
-- **Visual Aids:** Builds user canvas + 20 variations, calls `POST /predict_multiple`; retries up to 10 times until both class_0 and class_1 appear (or uses lowest-confidence variant for the missing slot). Displays Less = best_class_0, More = best_class_1.
-- **Chess:** After each user block, calls `/predict` for current composition; if &lt; 0.5, computer adds a block by calling `/predict_multiple` on 20 candidates; Help uses best_class_1, Oppose uses best_class_0 (retries until both classes if needed).
+- **Visual Aids:** Builds user canvas + 20 variations, calls `POST /predict_multiple`; retries up to 10 times until both class_0 and class_1 appear (or uses lowest-confidence variant for the missing slot). Displays Less = best_class_0, More = best_class_1. In Study mode with username, saves composition + visualaids-less/more images via `POST /save_study`.
+- **Chess:** After each user block, calls `/predict` for current composition; if below “reached” threshold (default 80%, set in ML modal), computer adds a block via `/predict_multiple` on 20 candidates; Help uses best_class_1, Oppose uses best_class_0. In Study mode, saves composition and result images to `dataset/study/{username}/`.
 - **Test Model:** Choose file or “Run dataset/test_images”; sends images to `/predict_multiple` and shows each image with score and class (More/Less).
 - **Label Data:** Sends vocabulary, labeler, label (class_0/class_1), image to `POST /save_label`; counts from `GET /label_counts`; balance via `POST /balance_labels`.
 
@@ -96,6 +101,7 @@ python start_ekphrasis.py
 
 - **Training:** `dataset/<vocabulary_id>/class_0/` and `class_1/` (images). Train with `python train_and_save_model.py <vocabulary_id>`.
 - **New labels:** `dataset/new/<vocabulary>_<date>_<labeler>/class_0/` and `class_1/`. Copy or move into `dataset/<vocabulary_id>/` when ready to retrain.
+- **Study recordings:** `dataset/study/<username>/`. In Study mode, filenames follow `{username}-v-composition-{n}-{timestamp}-{class}-{score}.png`, `{username}-v-visualaids-less|more-{n}-{timestamp}-{score}.png` (Visual Aids), and `{username}-chess-composition|result-{n}-{timestamp}-{class}-{score}.png` (Chess). Ignored by git via `.gitignore`.
 
 ## API endpoints
 
@@ -109,6 +115,7 @@ python start_ekphrasis.py
 | GET | `/label_counts` | Query `vocabulary`, `labeler` → counts for today’s run folder |
 | POST | `/save_label` | Body: vocabulary, labeler, label (class_0\|class_1), image (base64) |
 | POST | `/balance_labels` | Body: vocabulary, labeler; crop larger class to match smaller |
+| POST | `/save_study` | Body: username, filename, image (base64); save to `dataset/study/{username}/{filename}` |
 | GET | `/test_images` | List images in `dataset/test_images` as base64 |
 
 ## Model
