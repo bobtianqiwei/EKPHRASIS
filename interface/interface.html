@@ -167,6 +167,9 @@
             max-height: 100%;
             overflow: hidden;
         }
+        .content-wrapper.visual-aids-layout #mainContent {
+            margin-top: 32px; /* Add top spacing so Visual Aids content sits vertically more centered */
+        }
         .content-wrapper.test-model-active {
             width: 100%;
             max-width: 100%;
@@ -594,10 +597,11 @@
             width: 500px;
             max-width: 90vw;
             text-align: center;
-            margin: 0 auto 40px;
+            margin: 16px auto 40px;
             line-height: 1.6;
             color: #333;
             font-size: 13px;
+            min-height: 36px; /* Reserve space so layout does not jump */
         }
         .loading {
             display: none;
@@ -775,9 +779,7 @@
                 </div>
             </div>
             
-            <div class="feedback" id="feedbackDiv" style="display: none;">
-                Analysis will appear here...
-            </div>
+            <div class="feedback" id="feedbackDiv" style="display: none;"></div>
             </div>
             <div id="testModelSection">
                 <div class="test-model-upload">
@@ -942,13 +944,22 @@ function applyMode() {
         actionRow.style.display = 'flex';
     }
 
+    // Layout tweaks per mode
+    if (contentWrapper) {
+        if (mode === 'visual_aids') {
+            contentWrapper.classList.add('visual-aids-layout');
+        } else {
+            contentWrapper.classList.remove('visual-aids-layout');
+        }
+    }
+
     // Feedback text and left/right reference images only in Visual Aids mode
     const leftSlot = document.getElementById('leftSlot');
     const rightSlot = document.getElementById('rightSlot');
     const leftSlotImg = document.getElementById('leftSlotImg');
     const rightSlotImg = document.getElementById('rightSlotImg');
     if (mode === 'visual_aids') {
-        if (feedback) feedback.style.display = feedback.textContent ? 'block' : 'none';
+        if (feedback) feedback.style.display = 'block';
     } else {
         if (leftSlot) leftSlot.classList.remove('has-result');
         if (rightSlot) rightSlot.classList.remove('has-result');
@@ -1285,9 +1296,6 @@ function fitInViewport() {
 fitInViewport();
 window.addEventListener('resize', fitInViewport);
 
-// Initially hide the feedback message
-feedback.style.display = 'none';
-
 function updateCriterionLabels() {
     const opt = criterionSelect.selectedOptions[0];
     const name = opt ? opt.textContent : 'Visual Balance';
@@ -1348,7 +1356,10 @@ statusModalClose.addEventListener('click', closeStatusModal);
 statusModalOverlay.addEventListener('click', function (e) {
     if (e.target === statusModalOverlay) closeStatusModal();
 });
+// Re-check backend when user clicks the status button, and periodically
+serverStatusBtn.addEventListener('click', checkServer);
 checkServer();
+setInterval(checkServer, 15000);
 
 // Define grey color palette
 const greyColors = ['#D9D9D9', '#9C9C9C', '#535353', '#323131', '#000000'];
@@ -1758,8 +1769,10 @@ async function evaluateWithAI() {
     }
 
     document.getElementById('evaluateBtnSpinner').classList.add('show');
-    document.getElementById('evaluateBtnText').textContent = 'Generating';
-    feedback.style.display = 'none';
+    document.getElementById('evaluateBtnText').textContent = 'Thinking…';
+    if (feedback) {
+        feedback.textContent = '';
+    }
     scoreDisplay.style.display = 'none';
     evaluateBtn.disabled = true;
 
@@ -1769,6 +1782,10 @@ async function evaluateWithAI() {
         let allVariations = [rectangles];
         const maxAttempts = 10;
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            if (attempt === 1) {
+                // User-friendly hint when generating more variations
+                document.getElementById('evaluateBtnText').textContent = 'Exploring variations…';
+            }
             const variations = [];
             for (let i = 0; i < 20; i++) {
                 variations.push(createVariation(rectangles));
@@ -1776,7 +1793,7 @@ async function evaluateWithAI() {
             allVariations = [rectangles, ...variations];
             const images = allVariations.map(r => generateImageAsBase64(r));
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
             const response = await fetch(API_BASE + '/predict_multiple', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1833,7 +1850,6 @@ async function evaluateWithAI() {
             feedbackText = 'The composition could be improved. Try experimenting with different arrangements, sizes, and positions of elements to achieve better balance.';
         }
         feedback.textContent = feedbackText;
-        feedback.style.display = feedbackText ? 'block' : 'none';
 
         const userResult = result.all_results && result.all_results.find(r => r.index === 0);
         window._lastUserPct = userResult ? (userResult.confidence * 100).toFixed(1) : null;
@@ -1862,10 +1878,9 @@ async function evaluateWithAI() {
     } catch (error) {
         console.error('Error evaluating with AI:', error);
         const msg = error.name === 'AbortError'
-            ? 'Request timed out (30s). Is the ML server running? Run: cd ml && python3 start_server.py'
+            ? 'Request timed out (60s). Is the ML server running? Run: cd ml && python3 start_server.py'
             : ('Error: ' + (error.message || 'Could not reach ML server. Run: cd ml && python3 start_server.py'));
         feedback.textContent = msg;
-        feedback.style.display = 'block';
     } finally {
         document.getElementById('evaluateBtnSpinner').classList.remove('show');
         document.getElementById('evaluateBtnText').textContent = 'Generate visual aids';
