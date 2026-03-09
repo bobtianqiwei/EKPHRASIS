@@ -485,7 +485,7 @@
         .modal-variation-params .modal-variation-title { font-weight: 600; color: #111; margin-bottom: 4px; }
         .modal-variation-params .modal-variation-desc { font-size: 13px; color: #666; margin-bottom: 10px; line-height: 1.4; }
         .modal-variation-params label { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
-        .modal-variation-params input[type="number"] { width: 56px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; }
+        .modal-variation-params input[type="number"] { width: 45px; padding: 2px 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
         .chess-control { display: flex; align-items: center; justify-content: center; gap: 8px; }
         .chess-control label { font-size: 13px; color: #333; }
         /* Match bottom bar: same size, font, stroke, radius */
@@ -511,6 +511,54 @@
             box-sizing: border-box;
         }
         .chess-message-area.empty { visibility: hidden; }
+        .chess-message-area { gap: 8px; }
+        .chess-message-area .chess-message-spinner {
+            display: none;
+            width: 14px;
+            height: 14px;
+            position: relative;
+            flex-shrink: 0;
+            animation: spinner-rotate 4s linear infinite;
+        }
+        .chess-message-area .chess-message-spinner.show { display: block; }
+        .chess-message-area .chess-message-spinner .dot {
+            position: absolute;
+            width: 2px;
+            height: 6px;
+            border-radius: 2px;
+            background: currentColor;
+            left: 50%;
+            top: 50%;
+            margin-left: -1px;
+            margin-top: -3px;
+            transform-origin: 50% 50%;
+        }
+        .chess-message-area .chess-message-spinner .dot:nth-child(1) { transform: rotate(0deg) translateY(-5px); }
+        .chess-message-area .chess-message-spinner .dot:nth-child(2) { transform: rotate(45deg) translateY(-5px); }
+        .chess-message-area .chess-message-spinner .dot:nth-child(3) { transform: rotate(90deg) translateY(-5px); }
+        .chess-message-area .chess-message-spinner .dot:nth-child(4) { transform: rotate(135deg) translateY(-5px); }
+        .chess-message-area .chess-message-spinner .dot:nth-child(5) { transform: rotate(180deg) translateY(-5px); }
+        .chess-message-area .chess-message-spinner .dot:nth-child(6) { transform: rotate(225deg) translateY(-5px); }
+        .chess-message-area .chess-message-spinner .dot:nth-child(7) { transform: rotate(270deg) translateY(-5px); }
+        .chess-message-area .chess-message-spinner .dot:nth-child(8) { transform: rotate(315deg) translateY(-5px); }
+        .status-toast {
+            display: none;
+            position: absolute;
+            right: 0;
+            bottom: 100%;
+            margin-bottom: 8px;
+            max-width: 320px;
+            padding: 10px 14px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            font-size: 13px;
+            color: #333;
+            line-height: 1.4;
+            z-index: 150;
+        }
+        .status-toast.show { display: block; }
         #testModelSection { display: none; padding: 24px; max-width: 100%; width: 100%; box-sizing: border-box; margin: 0; overflow-y: auto; min-width: 0; }
         #testModelSection.show { display: block; }
         .test-model-upload { margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
@@ -651,6 +699,11 @@
                     <label>Position &plusmn; <input type="number" id="variationPositionPx" min="1" max="200" value="25" title="Max position offset in pixels"> px</label>
                     <label>Scale <input type="number" id="variationScaleMin" min="10" max="100" value="80" title="Min scale %">% &ndash; <input type="number" id="variationScaleMax" min="50" max="200" value="120" title="Max scale %">%</label>
                 </div>
+                <div class="modal-variation-params">
+                    <div class="modal-variation-title">Chess: Reached threshold</div>
+                    <div class="modal-variation-desc">In Chess mode, &quot;You seem to have reached [criterion]&quot; is shown when the model confidence (More) is at least this value.</div>
+                    <label>Reached at <input type="number" id="chessReachedThresholdPct" min="1" max="100" value="80" title="Percentage (1–100)">%</label>
+                </div>
             </div>
         </div>
         <div id="aboutModalOverlay" class="about-modal-overlay">
@@ -732,7 +785,13 @@
                 </div>
             </div>
 
-            <div class="chess-message-area empty" id="chessMessageArea" aria-live="polite"></div>
+            <div class="chess-message-area empty" id="chessMessageArea" aria-live="polite">
+                <span id="chessMessageText"></span>
+                <span class="loading-spinner chess-message-spinner" id="chessMessageSpinner" aria-hidden="true">
+                    <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                    <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </span>
+            </div>
             
             <div class="action-row" id="actionRow">
                 <button class="evaluate-button" id="evaluateBtn">
@@ -811,11 +870,12 @@
                     <option value="visual_balance">Visual Balance</option>
                 </select>
             </div>
-            <div class="topbar-right">
+            <div class="topbar-right" style="position: relative;">
                 <button type="button" class="backend-status-btn" id="serverStatusBtn" title="Click for details">
                     <span id="serverStatusText" class="status-text">Checking...</span>
                     <span class="status-dot checking" id="serverStatusDot"></span>
                 </button>
+                <div id="statusToast" class="status-toast" aria-live="polite"></div>
             </div>
         </header>
     </div>
@@ -852,11 +912,14 @@ const criterionSelect = document.getElementById('criterionSelect');
 const modeSelect = document.getElementById('modeSelect');
 const contentWrapper = document.querySelector('.content-wrapper');
 const containerEl = document.querySelector('.container');
+const chessMessageEl = document.getElementById('chessMessageArea');
 const aboutModalOverlay = document.getElementById('aboutModalOverlay');
 const aboutModalClose = document.getElementById('aboutModalClose');
 
 // Show model scores in slot labels (Less X n%, More X n%). Default off; toggle in ML status modal.
 let showModelScores = false;
+// Chess: confidence threshold (0–1) to show "reached [criterion]". Default 80%.
+let chessTargetScorePercent = 0.8;
 window._lastLessPct = null;
 window._lastMorePct = null;
 
@@ -887,6 +950,16 @@ document.getElementById('showScoresCheckbox').addEventListener('change', functio
     showModelScores = this.checked;
     updateSlotLabelScores();
 });
+const chessReachedThresholdPctEl = document.getElementById('chessReachedThresholdPct');
+if (chessReachedThresholdPctEl) {
+    chessReachedThresholdPctEl.addEventListener('input', function () {
+        let pct = parseInt(this.value, 10);
+        if (!isNaN(pct)) {
+            pct = Math.max(1, Math.min(100, pct));
+            chessTargetScorePercent = pct / 100;
+        }
+    });
+}
 
 // About modal: click EKPHRASIS to show project description and paper link
 document.getElementById('ekphrasisAboutBtn').addEventListener('click', function () {
@@ -907,7 +980,6 @@ function applyMode() {
     const labelDataActionRow = document.getElementById('labelDataActionRow');
     const evaluateBtnEl = document.getElementById('evaluateBtn');
     const chessControlEl = document.getElementById('chessControl');
-    const chessMessageEl = document.getElementById('chessMessageArea');
     const chessPromptEl = document.getElementById('chessPromptLine');
     const controlsEl = document.querySelector('.controls');
     const promptEl = document.querySelector('.prompt');
@@ -944,12 +1016,13 @@ function applyMode() {
         actionRow.style.display = 'flex';
     }
 
-    // Layout tweaks per mode
+    // Layout tweaks per mode; clear Visual Aids "excellent" message when leaving
     if (contentWrapper) {
         if (mode === 'visual_aids') {
             contentWrapper.classList.add('visual-aids-layout');
         } else {
             contentWrapper.classList.remove('visual-aids-layout');
+            if (chessMessageEl) setChessMessage('');
         }
     }
 
@@ -959,7 +1032,7 @@ function applyMode() {
     const leftSlotImg = document.getElementById('leftSlotImg');
     const rightSlotImg = document.getElementById('rightSlotImg');
     if (mode === 'visual_aids') {
-        if (feedback) feedback.style.display = 'block';
+        if (feedback) feedback.style.display = 'none';
     } else {
         if (leftSlot) leftSlot.classList.remove('has-result');
         if (rightSlot) rightSlot.classList.remove('has-result');
@@ -1322,9 +1395,11 @@ criterionSelect.addEventListener('change', updateCriterionLabels);
 populateCriterionDropdown();
 
 // Check backend on load; update status button (text + dot). Details in modal when button is clicked.
-function checkServer() {
-    serverStatusText.textContent = 'Checking...';
-    serverStatusDot.className = 'status-dot checking';
+function checkServer(silent) {
+    if (!silent) {
+        serverStatusText.textContent = 'Checking...';
+        serverStatusDot.className = 'status-dot checking';
+    }
     statusModal.classList.remove('ok', 'error');
     statusModalBody.innerHTML = '';
 
@@ -1356,10 +1431,23 @@ statusModalClose.addEventListener('click', closeStatusModal);
 statusModalOverlay.addEventListener('click', function (e) {
     if (e.target === statusModalOverlay) closeStatusModal();
 });
-// Re-check backend when user clicks the status button, and periodically
-serverStatusBtn.addEventListener('click', checkServer);
-checkServer();
-setInterval(checkServer, 15000);
+// Re-check backend when user clicks the status button, and periodically (silent)
+serverStatusBtn.addEventListener('click', function () { checkServer(false); });
+checkServer(false);
+setInterval(function () { checkServer(true); }, 15000);
+
+let statusToastTimeout = null;
+function showStatusToast(message) {
+    const el = document.getElementById('statusToast');
+    if (!el) return;
+    if (statusToastTimeout) clearTimeout(statusToastTimeout);
+    el.textContent = message;
+    el.classList.add('show');
+    statusToastTimeout = setTimeout(function () {
+        el.classList.remove('show');
+        el.textContent = '';
+    }, 10000);
+}
 
 // Define grey color palette
 const greyColors = ['#D9D9D9', '#9C9C9C', '#535353', '#323131', '#000000'];
@@ -1368,13 +1456,24 @@ const greyColors = ['#D9D9D9', '#9C9C9C', '#535353', '#323131', '#000000'];
 let chessComputerThinking = false;
 
 function getChessTargetScore() {
-    return 0.5;
+    return chessTargetScorePercent;
 }
 
 function setChessMessage(text) {
     const el = document.getElementById('chessMessageArea');
+    const textEl = document.getElementById('chessMessageText');
+    const spinnerEl = document.getElementById('chessMessageSpinner');
     if (!el) return;
-    el.textContent = text || '';
+    if (textEl) textEl.textContent = text || '';
+    if (spinnerEl) {
+        if (text === 'Computer is thinking...') {
+            spinnerEl.classList.add('show');
+            spinnerEl.setAttribute('aria-hidden', 'false');
+        } else {
+            spinnerEl.classList.remove('show');
+            spinnerEl.setAttribute('aria-hidden', 'true');
+        }
+    }
     if (text) el.classList.remove('empty'); else el.classList.add('empty');
 }
 
@@ -1472,7 +1571,7 @@ async function computerTurn() {
             renderRectanglesWithFadeIn(rectangles.length - 1, 500);
         }
         const score = await chessRunModel();
-        if (score >= 0.5) {
+        if (score >= getChessTargetScore()) {
             showChessGoalReached(score);
         } else if (showModelScores) {
             const cls = score >= 0.5 ? 'More' : 'Less';
@@ -1770,9 +1869,7 @@ async function evaluateWithAI() {
 
     document.getElementById('evaluateBtnSpinner').classList.add('show');
     document.getElementById('evaluateBtnText').textContent = 'Thinking…';
-    if (feedback) {
-        feedback.textContent = '';
-    }
+    if (chessMessageEl) setChessMessage('');
     scoreDisplay.style.display = 'none';
     evaluateBtn.disabled = true;
 
@@ -1782,9 +1879,8 @@ async function evaluateWithAI() {
         let allVariations = [rectangles];
         const maxAttempts = 10;
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            if (attempt === 1) {
-                // User-friendly hint when generating more variations
-                document.getElementById('evaluateBtnText').textContent = 'Exploring variations…';
+            if (attempt >= 1) {
+                document.getElementById('evaluateBtnText').textContent = 'Attempt ' + (attempt + 1);
             }
             const variations = [];
             for (let i = 0; i < 20; i++) {
@@ -1841,15 +1937,10 @@ async function evaluateWithAI() {
         document.getElementById('moreScore').textContent = (morePct * 100).toFixed(1) + '%';
 
         const moreScore = morePct;
-        let feedbackText = '';
-        if (moreScore > 0.8) {
-            feedbackText = 'Excellent composition! Your design shows strong visual harmony. The AI model recognizes the balanced arrangement of elements.';
-        } else if (moreScore > 0.6) {
-            feedbackText = '';
-        } else {
-            feedbackText = 'The composition could be improved. Try experimenting with different arrangements, sizes, and positions of elements to achieve better balance.';
+        if (moreScore > 0.8 && chessMessageEl) {
+            const criterionName = criterionSelect.selectedOptions[0] ? criterionSelect.selectedOptions[0].textContent : 'it';
+            setChessMessage('Excellent composition! You seem to have reached ' + criterionName + '. What do you think?');
         }
-        feedback.textContent = feedbackText;
 
         const userResult = result.all_results && result.all_results.find(r => r.index === 0);
         window._lastUserPct = userResult ? (userResult.confidence * 100).toFixed(1) : null;
@@ -1880,7 +1971,7 @@ async function evaluateWithAI() {
         const msg = error.name === 'AbortError'
             ? 'Request timed out (60s). Is the ML server running? Run: cd ml && python3 start_server.py'
             : ('Error: ' + (error.message || 'Could not reach ML server. Run: cd ml && python3 start_server.py'));
-        feedback.textContent = msg;
+        showStatusToast(msg);
     } finally {
         document.getElementById('evaluateBtnSpinner').classList.remove('show');
         document.getElementById('evaluateBtnText').textContent = 'Generate visual aids';
