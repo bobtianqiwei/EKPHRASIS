@@ -1,14 +1,12 @@
-# EKPHRASIS - Generating Visual Aids for Graphic Design Education
+# EKPHRASIS – Generating Visual Aids for Graphic Design Education
 
-EKPHRASIS is an interactive educational system that helps students understand graphic design language—such as "visual harmony"—by generating concrete visual aids from their own compositions. Users create a composition on a digital canvas; the system then provides "less" and "more" effective examples (relative to the chosen criterion) so learners can compare and refine their intuition.
+EKPHRASIS is an interactive system that helps learners build intuition for graphic design vocabulary (e.g. “visual balance”) by creating compositions and receiving “less” and “more” effective examples from an ML model. Users draw on a canvas; the system shows reference images and supports multiple modes: **Visual Aids**, **Chess** (turn-based with a computer), **Test Model**, and **Label Data** for collecting training data.
 
-This repository accompanies the paper **"Generating Visual Aids to Help Students Understand Graphic Design with EKPHRASIS"** (CHI EA ’25).
+This repository accompanies the paper **“Generating Visual Aids to Help Students Understand Graphic Design with EKPHRASIS”** (CHI EA ’25).
 
 - **Paper (open access):** [https://doi.org/10.1145/3706599.3719807](https://doi.org/10.1145/3706599.3719807)
 
 ## Citation
-
-If you use or build on EKPHRASIS, please cite our paper:
 
 ```bibtex
 @inproceedings{wei2025generating,
@@ -22,118 +20,104 @@ If you use or build on EKPHRASIS, please cite our paper:
 
 ## Features
 
-- **Interactive Canvas**: Draw and arrange rectangles in different shades of grey
-- **Visual Aids**: ML-backed system generates "less" and "more" effective examples (e.g. less/more visual harmony) from your composition
-- **Variation Generation**: Automatically creates multiple variations; best and worst (relative to the criterion) are shown left/right of the canvas
-- **Educational Focus**: Supports associating design vocabulary with visual examples for learning
+- **Canvas** – Draw and arrange grey rectangles; undo/redo, export.
+- **Visual Aids** – Generate “less” and “more” examples for the selected criterion. Left = highest-confidence **class_0** (Less), right = highest-confidence **class_1** (More). If only one class appears after several tries, the other slot shows the lowest-confidence variant. Feedback text and reference images are shown only in this mode.
+- **Chess** – Turn-based: you add a block, then the computer adds one. Computer strategies: **Help** (picks highest-confidence class_1), **Oppose** (highest-confidence class_0), **Random**. Goal reached when model confidence ≥ 0.5 (class_1).
+- **Test Model** – Upload images or use `dataset/test_images`; run the current criterion and see image + score (e.g. “45.2% More”) per result.
+- **Label Data** – Label random compositions as “does not fit” (0) or “fits” (1). Saves to `dataset/new/{vocabulary}_{date}_{labeler}/class_0|class_1`. Optional **Crop Dataset** to balance classes; keyboard ← / → for 0 / 1; labeler name cached in browser.
 
-## System Architecture
+## System architecture
 
 ```
 EKPHRASIS/
 ├── interface/
-│   ├── interface.html          # Main user interface
+│   ├── interface.html    # Single-page UI (canvas, modes, modals)
 │   └── logo.png
 ├── ml/
-│   ├── model_server.py         # Flask API server
-│   ├── train_and_save_model.py # Train one model per vocabulary
-│   ├── start_server.py         # Server startup script
-│   ├── test_system.py          # System test script
-│   ├── models/                 # One .h5 per vocabulary (e.g. visual_balance.h5)
-│   ├── requirements.txt
-│   └── README.md
-├── dataset/                    # Data per vocabulary
-│   ├── visual_balance/         # For vocabulary "visual_balance"
-│   │   ├── class_0/            # Less [criterion]
-│   │   └── class_1/            # More [criterion]
-│   ├── balance/                # Legacy path (Bob's classes)
-│   │   └── Bob's classes/
-│   │       ├── class_0/
-│   │       └── class_1/
-│   └── test_images/            # Test images
-├── other_files/
-│   └── archive/                # Old demos, notebooks (e.g. demo_backup)
-├── start_ekphrasis.py          # Launcher: train (if needed), start server, open browser
-├── Start EKPHRASIS.command     # macOS double-click launcher
+│   ├── model_server.py   # Flask API (predict, predict_multiple, labels, etc.)
+│   ├── train_and_save_model.py  # Train one model per vocabulary
+│   ├── start_server.py   # Start server on port 5001
+│   ├── models/           # One .h5 per vocabulary (e.g. visual_balance.h5)
+│   └── requirements.txt
+├── dataset/
+│   ├── <vocabulary_id>/  # Training data: class_0/, class_1/ (e.g. visual_balance/)
+│   ├── new/              # New labels: <vocabulary>_<date>_<labeler>/class_0|class_1
+│   └── test_images/      # Images for Test Model “Run dataset/test_images”
+├── start_ekphrasis.py    # Optional: start server and open browser
 └── README.md
 ```
 
-## Quick Start
+## Quick start
 
-### 1. Setup ML Backend
+### 1. Backend
 
 ```bash
-# Navigate to ML directory
 cd ml
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Train a vocabulary model (first time or when adding a new one)
-python train_and_save_model.py visual_balance
-
-# Start the ML server
+python train_and_save_model.py visual_balance   # needs dataset/visual_balance/class_0, class_1
 python start_server.py
 ```
 
-The server will start on `http://localhost:5001` (port 5001 is used to avoid conflict with macOS AirPlay on 5000).
+Server runs at **http://localhost:5001** (port 5001 to avoid conflict with macOS AirPlay on 5000).
 
-### 2. Open the Interface
+### 2. Interface
 
-Open **http://localhost:5001/** in your browser (the backend serves the interface), or run from the project root:
+Open **http://localhost:5001/** in a browser (the backend serves the interface). Or from the project root:
 
 ```bash
 python start_ekphrasis.py
 ```
 
-to start the server and open the interface automatically.
+### 3. Using the app
 
-### 3. Create and Get Visual Aids
+- **Practice vocabulary** (bottom bar): choose the criterion (e.g. Visual Balance).
+- **Mode** (bottom bar): Canvas, Visual Aids, Chess, Test Model, Label Data.
+- In **Visual Aids**: draw, click “Generate visual aids”; left/right show Less and More examples; feedback appears below when applicable.
+- In **Label Data**: set Vocabulary and Labeler (labeler is cached); use buttons or ← / → to label; optionally “Crop Dataset” to balance classes.
 
-1. Use the canvas to create a composition with rectangles
-2. Choose colors from the grey palette
-3. Click **"Generate visual aids"** to get less/more effective examples (e.g. less/more visual balance)
-4. Compare the two images shown left and right of the canvas
+**Requirements:** Python 3.7+, browser, ~4GB+ RAM for the model.
 
-**System requirements**: Python 3.7+, modern web browser, 4GB+ RAM for the ML model. The server runs on port **5001** (avoid conflict with macOS AirPlay on 5000).
+## How it works
 
-## How It Works
+### Frontend (`interface/interface.html`)
 
-### Frontend (interface.html)
-- Interactive canvas for composition creation
-- Color palette with 5 shades of grey
-- Real-time drawing and dragging of rectangles
-- Integration with ML backend via REST API
+- Single HTML file: canvas, mode-specific UI, modals (settings, about, backend status).
+- **Visual Aids:** Builds user canvas + 20 variations, calls `POST /predict_multiple`; retries up to 10 times until both class_0 and class_1 appear (or uses lowest-confidence variant for the missing slot). Displays Less = best_class_0, More = best_class_1.
+- **Chess:** After each user block, calls `/predict` for current composition; if &lt; 0.5, computer adds a block by calling `/predict_multiple` on 20 candidates; Help uses best_class_1, Oppose uses best_class_0 (retries until both classes if needed).
+- **Test Model:** Choose file or “Run dataset/test_images”; sends images to `/predict_multiple` and shows each image with score and class (More/Less).
+- **Label Data:** Sends vocabulary, labeler, label (class_0/class_1), image to `POST /save_label`; counts from `GET /label_counts`; balance via `POST /balance_labels`.
 
-### Backend (ML Server)
-- Flask server providing prediction endpoints
-- VGG16-based neural network for composition analysis
-- Binary classification: harmonious vs less harmonious
-- Processes multiple image variations simultaneously
+### Backend (`ml/model_server.py`)
 
-### Workflow
-1. User creates composition on canvas
-2. System generates multiple variations with slight modifications
-3. All variations are sent to the ML model for prediction
-4. "Less" and "more" effective examples (e.g. less/more visual harmony) are shown left and right of the canvas
-5. Optional feedback text is shown when applicable
+- **Prediction:** VGG16 backbone + small head; input 224×224 RGB, output confidence in [0,1]; class_0 if &lt; 0.5, class_1 otherwise.
+- **`/predict_multiple`:** Returns **best_class_0** (among class_0 predictions, highest confidence), **best_class_1** (among class_1, highest confidence), plus `all_results`. Used for Less/More and for Chess Help/Oppose.
 
-## API Endpoints
+### Data
 
-- `GET /health` - Server status check
-- `POST /predict` - Single image prediction
-- `POST /predict_multiple` - Multiple image predictions with ranking
+- **Training:** `dataset/<vocabulary_id>/class_0/` and `class_1/` (images). Train with `python train_and_save_model.py <vocabulary_id>`.
+- **New labels:** `dataset/new/<vocabulary>_<date>_<labeler>/class_0/` and `class_1/`. Copy or move into `dataset/<vocabulary_id>/` when ready to retrain.
 
-## Model Details
+## API endpoints
 
-- **Architecture**: Modified VGG16 (pre-trained backbone + custom classification head). See Simonyan & Zisserman, [*Very Deep Convolutional Networks for Large-Scale Image Recognition*](https://arxiv.org/abs/1409.1556) (ICLR 2015) for the original architecture.
-- **Input**: 224×224 RGB images
-- **Output**: Confidence score (0–1) for the selected criterion
-- **Training**: Binary classification on composition dataset per vocabulary
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Serve `interface/interface.html` |
+| GET | `/health` | Server and model status |
+| GET | `/criteria` | List vocabularies (id, name) for dropdown |
+| POST | `/predict` | Single image → confidence, class |
+| POST | `/predict_multiple` | Multiple images → best_class_0, best_class_1, all_results |
+| GET | `/label_counts` | Query `vocabulary`, `labeler` → counts for today’s run folder |
+| POST | `/save_label` | Body: vocabulary, labeler, label (class_0\|class_1), image (base64) |
+| POST | `/balance_labels` | Body: vocabulary, labeler; crop larger class to match smaller |
+| GET | `/test_images` | List images in `dataset/test_images` as base64 |
+
+## Model
+
+- **Architecture:** VGG16 (ImageNet, frozen) + Flatten + Dense(128) + Dense(1, sigmoid).
+- **Training:** `train_and_save_model.py`; reads `dataset/<vocabulary_id>/class_0` and `class_1`; 80/20 train/val; class weights only when imbalanced; saves `ml/models/<vocabulary_id>.h5`.
+- **Adding a vocabulary:** Add folder `dataset/<id>/class_0`, `class_1`; run `python train_and_save_model.py <id>`; add `{'id':'<id>','name':'...','model_file':'models/<id>.h5'}` to `CRITERIA` in `model_server.py`; restart server.
 
 ## Testing
-
-Run the test script to verify system functionality:
 
 ```bash
 cd ml
@@ -142,50 +126,10 @@ python test_system.py
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Server not starting**: Check if port 5001 is available (macOS may use 5000 for AirPlay)
-2. **Model not found**: Run `cd ml && python train_and_save_model.py visual_balance` (requires `dataset/visual_balance/class_0` and `class_1`)
-3. **Import errors**: Install dependencies with `pip install -r requirements.txt` and `pip install flask-cors`
-4. **Frontend can't connect**: Ensure server is running and open **http://localhost:5001/**
-
-### Performance Notes
-
-- Model predictions take ~100-200ms per image
-- Server can handle multiple concurrent requests
-- For production, consider model optimization
-
-## Development
-
-### Adding a new design vocabulary (new model)
-
-Each design term (e.g. Visual Harmony) has its own trained model. To add another:
-
-1. **Add dataset**: Create dataset/<vocabulary_id>/ with class_0/ (less) and class_1/ (more). Example: dataset/visual_harmony/class_0/, dataset/visual_harmony/class_1/.
-2. **Train**: `cd ml && python train_and_save_model.py <vocabulary_id>` (e.g. `python train_and_save_model.py visual_harmony`). This saves `ml/models/<vocabulary_id>.h5`.
-3. **Register** in `ml/model_server.py`: add to the `CRITERIA` list, e.g. `{'id': 'visual_harmony', 'name': 'Visual Harmony', 'model_file': 'models/visual_harmony.h5'}`.
-4. Restart the server. The frontend dropdown is filled from `GET /criteria`.
-
-### Adding New Features
-
-1. **Frontend**: Modify `interface/interface.html`
-2. **Backend**: Extend `ml/model_server.py`
-3. **Model**: Update training script and retrain
-
-### Dataset Structure
-
-One folder per vocabulary under `dataset/<vocabulary_id>/`, each with `class_0` (less) and `class_1` (more). The training script reads from `dataset/<vocabulary_id>/` (e.g. `dataset/visual_balance/`).
-
-```
-dataset/
-├── visual_balance/             # Used by: python train_and_save_model.py visual_balance
-│   ├── class_0/                 # Less [criterion] (PNG files)
-│   └── class_1/                 # More [criterion]
-├── balance/Bob's classes/       # Legacy; can mirror to visual_balance or other id
-│   ├── class_0/
-│   └── class_1/
-└── test_images/                 # Optional test images
-```
+- **Server won’t start:** Port 5001 in use or blocked.
+- **Model not found:** Run `python train_and_save_model.py visual_balance` (requires `dataset/visual_balance/class_0` and `class_1`).
+- **Frontend can’t connect:** Use http://localhost:5001/ (not file://).
+- **“Could not get both Less and More”:** Now handled by showing one class and using the lowest-confidence variant for the other slot; if you still see errors, check backend logs.
 
 ## Credits
 
@@ -193,4 +137,4 @@ EKPHRASIS by Bob Tianqi Wei, Shayne Shen, Shm Garanganao Almeda, and Bjoern Hart
 
 ## License
 
-This project is for research and educational purposes.
+This project is for research and education.
