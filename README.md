@@ -25,7 +25,8 @@ This repository accompanies the paper **“Generating Visual Aids to Help Studen
 - **Chess** – Turn-based: you add a block, then the computer adds one. Computer strategies: **Help** (picks highest-confidence class_1), **Oppose** (highest-confidence class_0), **Random**. “Reached” threshold is configurable in the ML status modal (default 80%).
 - **Test Model** – Upload images or use `dataset/test_images`; run the current criterion and see image + score (e.g. “45.2% More”) per result.
 - **Label Data** – Label random compositions as “does not fit” (0) or “fits” (1). Saves to `dataset/new/{vocabulary}_{date}_{labeler}/class_0|class_1`. Optional **Crop Dataset** to balance classes; keyboard ← / → for 0 / 1; labeler name cached in browser.
-- **Demo vs Study** – Bottom bar: **Demo** (no logging) or **Study**. In Study mode, a **User** field appears; compositions and system feedback (Visual Aids less/more, Chess composition and result) are saved under `dataset/study/{username}/` with timestamped filenames. Useful for HCI experiments.
+- **Demo vs Study** – Bottom bar: **Demo** (no logging) or **Study**. In Study mode, a **User** field appears; the app records (1) saved images under `dataset/study/{username}/` and (2) structured interaction events to `dataset/study/{username}/events.jsonl` (JSONL). Useful for HCI experiments.
+- **Analytics** – A dedicated mode to inspect Study logs: filter by user/session/mode/vocabulary/event type, view summaries and distributions, click an event to see a right-side detail panel (composition redrawn from `state_snapshot` plus saved feedback images when available), and export the filtered events as JSON/CSV.
 - **Persistent state** – Mode, Demo/Study choice, and username are stored in the browser (localStorage). Refresh keeps the same state. **Reset mode & username** in the ML status modal clears this cache.
 
 ## System architecture
@@ -44,7 +45,7 @@ EKPHRASIS/
 ├── dataset/
 │   ├── <vocabulary_id>/  # Training data: class_0/, class_1/ (e.g. visual_balance/)
 │   ├── new/              # New labels: <vocabulary>_<date>_<labeler>/class_0|class_1
-│   ├── study/            # Study recordings: <username>/*.png (when using Study mode)
+│   ├── study/            # Study recordings: <username>/*.png + events.jsonl (when using Study mode)
 │   └── test_images/      # Images for Test Model “Run dataset/test_images”
 ├── start_ekphrasis.py    # Optional: start server and open browser
 └── README.md
@@ -74,7 +75,7 @@ python start_ekphrasis.py
 ### 3. Using the app
 
 - **Practice vocabulary** (bottom bar): choose the criterion (e.g. Visual Balance).
-- **Mode** (bottom bar): Canvas, Visual Aids, Chess, Test Model, Label Data.
+- **Mode**: Canvas, Visual Aids, Chess, Test Model, Label Data, Analytics.
 - **Demo / Study** (bottom bar, left of ML): Demo = no logging; Study = record to `dataset/study/{username}/`. In Study, enter **User** (username); each Generate (Visual Aids) or move (Chess) saves composition and system feedback with timestamped filenames.
 - **ML status** (bottom bar): Button always shows “ML”; dot color indicates state (green = connected, yellow = disconnected, gray = checking). Click to open modal (server message, model info, variation range, Chess reached threshold, Show model scores, **Reset mode & username**).
 - In **Visual Aids**: draw, click “Generate visual aids”; left/right show Less and More examples; feedback in the message area when applicable.
@@ -89,6 +90,8 @@ python start_ekphrasis.py
 - Single HTML file: canvas, mode-specific UI, modals (settings, about, backend status).
 - **Visual Aids:** Builds user canvas + 20 variations, calls `POST /predict_multiple`; retries up to 10 times until both class_0 and class_1 appear (or uses lowest-confidence variant for the missing slot). Displays Less = best_class_0, More = best_class_1. In Study mode with username, saves composition + visualaids-less/more images via `POST /save_study`.
 - **Chess:** After each user block, calls `/predict` for current composition; if below “reached” threshold (default 80%, set in ML modal), computer adds a block via `/predict_multiple` on 20 candidates; Help uses best_class_1, Oppose uses best_class_0. In Study mode, saves composition and result images to `dataset/study/{username}/`.
+- **Study event logging (JSONL):** In Study mode, user and system actions are appended to `dataset/study/{username}/events.jsonl` via `POST /log_study_event`. Events include timestamps, `session_id`, `app_mode`, `criterion`, `event_type`, `state_id`, and a `payload` (e.g., `state_snapshot`, `block_id`, and saved image filenames when applicable).
+- **Analytics mode:** Fetches available study users and events from the backend and provides filtering, event timeline + detail view, and export (JSON/CSV) of the currently filtered events.
 - **Test Model:** Choose file or “Run dataset/test_images”; sends images to `/predict_multiple` and shows each image with score and class (More/Less).
 - **Label Data:** Sends vocabulary, labeler, label (class_0/class_1), image to `POST /save_label`; counts from `GET /label_counts`; balance via `POST /balance_labels`.
 
@@ -101,7 +104,7 @@ python start_ekphrasis.py
 
 - **Training:** `dataset/<vocabulary_id>/class_0/` and `class_1/` (images). Train with `python train_and_save_model.py <vocabulary_id>`.
 - **New labels:** `dataset/new/<vocabulary>_<date>_<labeler>/class_0/` and `class_1/`. Copy or move into `dataset/<vocabulary_id>/` when ready to retrain.
-- **Study recordings:** `dataset/study/<username>/`. In Study mode, filenames follow `{username}-v-composition-{n}-{timestamp}-{class}-{score}.png`, `{username}-v-visualaids-less|more-{n}-{timestamp}-{score}.png` (Visual Aids), and `{username}-chess-composition|result-{n}-{timestamp}-{class}-{score}.png` (Chess). Ignored by git via `.gitignore`.
+- **Study recordings:** `dataset/study/<username>/`. In Study mode, images are saved under this folder and structured events are appended to `events.jsonl` (one JSON object per line). Filenames follow `{username}-v-composition-{n}-{timestamp}-{class}-{score}.png`, `{username}-v-visualaids-less|more-{n}-{timestamp}-{score}.png` (Visual Aids), and `{username}-chess-composition|result-{n}-{timestamp}-{class}-{score}.png` (Chess). Ignored by git via `.gitignore`.
 
 ## API endpoints
 
@@ -116,6 +119,10 @@ python start_ekphrasis.py
 | POST | `/save_label` | Body: vocabulary, labeler, label (class_0\|class_1), image (base64) |
 | POST | `/balance_labels` | Body: vocabulary, labeler; crop larger class to match smaller |
 | POST | `/save_study` | Body: username, filename, image (base64); save to `dataset/study/{username}/{filename}` |
+| POST | `/log_study_event` | Body: username, event (object); append one JSONL event to `dataset/study/{username}/events.jsonl` |
+| GET | `/study_users` | List usernames that have a `dataset/study/{username}/` folder |
+| GET | `/study_events` | Query: username + optional filters (`session_id`, `app_mode`, `criterion`, `event_type`); returns matching events + available filter values |
+| GET | `/study_image` | Query: username, filename; return one saved study image (read-only) |
 | GET | `/test_images` | List images in `dataset/test_images` as base64 |
 
 ## Model
