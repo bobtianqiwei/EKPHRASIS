@@ -154,6 +154,13 @@
             gap: 8px;
             min-width: 0;
         }
+        .study-datetime {
+            display: none;
+            font-size: 11px;
+            color: #888;
+            white-space: nowrap;
+        }
+        .study-datetime.show { display: inline; }
         .topbar-center .criterion-label { margin: 0; font-size: 13px; color: #333; }
         .topbar-center .criterion-select { margin: 0; }
         .backend-status-btn .status-dot { order: 2; margin-left: 6px; }
@@ -1080,6 +1087,7 @@
                 </select>
             </div>
             <div class="topbar-right" style="position: relative;">
+                <span id="studyDateTime" class="study-datetime" aria-live="polite"></span>
                 <select id="studyModeSelect" class="study-mode-select" title="Demo: no logging. Study: record to dataset/study/">
                     <option value="demo" selected>Demo</option>
                     <option value="study">Study</option>
@@ -1142,6 +1150,7 @@ const containerEl = document.querySelector('.container');
 const chessMessageEl = document.getElementById('chessMessageArea');
 const aboutModalOverlay = document.getElementById('aboutModalOverlay');
 const aboutModalClose = document.getElementById('aboutModalClose');
+const studyDateTimeEl = document.getElementById('studyDateTime');
 
 // Show model scores in slot labels (Less X n%, More X n%). Default off; toggle in ML status modal.
 let showModelScores = false;
@@ -1214,6 +1223,35 @@ if (chessReachedThresholdPctEl) {
 }
 const studyModeSelect = document.getElementById('studyModeSelect');
 const studyUserWrap = document.getElementById('studyUserWrap');
+let studyDateTimeTimer = null;
+
+function formatStudyDateTime(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d} ${hh}:${mm}`;
+}
+
+function updateStudyDateTime() {
+    if (!studyDateTimeEl) return;
+    const isStudy = studyModeSelect && studyModeSelect.value === 'study';
+    if (!isStudy) {
+        studyDateTimeEl.textContent = '';
+        studyDateTimeEl.classList.remove('show');
+        return;
+    }
+    studyDateTimeEl.textContent = formatStudyDateTime(new Date());
+    studyDateTimeEl.classList.add('show');
+}
+
+function startStudyDateTimeTimer() {
+    if (studyDateTimeTimer) clearInterval(studyDateTimeTimer);
+    updateStudyDateTime();
+    studyDateTimeTimer = setInterval(updateStudyDateTime, 30000);
+}
+
 function updateStudyUI() {
     const isStudy = studyModeSelect && studyModeSelect.value === 'study';
     const mode = modeSelect ? modeSelect.value : '';
@@ -1228,11 +1266,13 @@ function updateStudyUI() {
         else explanationInput.placeholder = 'Briefly explain your composition strategy...';
         if (!showExplanation) explanationInput.value = '';
     }
+    updateStudyDateTime();
 }
 if (studyModeSelect) {
     studyModeSelect.addEventListener('change', updateStudyUI);
 }
 updateStudyUI();
+startStudyDateTimeTimer();
 
 const STORAGE_STUDY_MODE = 'ekphrasis_study_mode';
 const STORAGE_APP_MODE = 'ekphrasis_app_mode';
