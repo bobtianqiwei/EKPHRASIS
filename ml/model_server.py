@@ -356,6 +356,26 @@ def study_events():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/study_image', methods=['GET'])
+def study_image():
+    """Return one study image from dataset/study/{username}/{filename}."""
+    try:
+        username = (request.args.get('username') or '').strip()
+        filename = request.args.get('filename')
+        if not username or not filename:
+            return jsonify({"error": "Missing username or filename"}), 400
+        safe_filename = _sanitize_study_filename(filename)
+        if not safe_filename or not safe_filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            return jsonify({"error": "Invalid filename"}), 400
+        project_root = os.path.dirname(INTERFACE_DIR)
+        user_dir = _study_user_dir(project_root, username)
+        filepath = os.path.join(user_dir, safe_filename)
+        if not os.path.isfile(filepath):
+            return jsonify({"error": "Image not found"}), 404
+        return send_from_directory(user_dir, safe_filename)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/predict_multiple', methods=['POST'])
 def predict_multiple():
     """

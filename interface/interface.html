@@ -602,7 +602,7 @@
         .study-analysis-card { border: 1px solid #ddd; border-radius: 10px; background: #fff; padding: 12px; }
         .study-analysis-card .label { font-size: 12px; color: #666; margin-bottom: 6px; }
         .study-analysis-card .value { font-size: 24px; line-height: 1.2; color: #111; font-weight: 600; }
-        .study-analysis-grid { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 16px; align-items: start; }
+        .study-analysis-grid { display: grid; grid-template-columns: minmax(220px, 300px) minmax(320px, 1fr) minmax(280px, 360px); gap: 16px; align-items: start; }
         .study-analysis-panel { border: 1px solid #ddd; border-radius: 10px; background: #fff; padding: 14px; }
         .study-analysis-panel .title { font-size: 14px; font-weight: 600; color: #111; margin-bottom: 10px; }
         .study-analysis-bars { display: flex; flex-direction: column; gap: 8px; }
@@ -610,10 +610,39 @@
         .study-analysis-bar-track { height: 10px; background: #eee; border-radius: 999px; overflow: hidden; }
         .study-analysis-bar-fill { height: 100%; background: #333; border-radius: 999px; }
         .study-analysis-timeline { display: flex; flex-direction: column; gap: 8px; max-height: 520px; overflow-y: auto; }
-        .study-analysis-event { border: 1px solid #eee; border-radius: 8px; padding: 10px; background: #fafafa; }
+        .study-analysis-event { border: 1px solid #eee; border-radius: 8px; padding: 10px; background: #fafafa; cursor: pointer; }
+        .study-analysis-event.selected { border-color: #999; background: #f0f0f0; }
         .study-analysis-event-meta { font-size: 11px; color: #777; margin-bottom: 4px; }
         .study-analysis-event-type { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 4px; }
         .study-analysis-event-body { font-size: 12px; color: #555; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+        .study-analysis-detail-meta { font-size: 12px; color: #666; line-height: 1.5; margin-bottom: 10px; }
+        .study-analysis-detail-images { display: grid; gap: 10px; }
+        .study-analysis-detail-card {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background: #fafafa;
+            padding: 10px;
+        }
+        .study-analysis-detail-card .label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .study-analysis-detail-card img {
+            display: block;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 6px;
+        }
+        .study-analysis-detail-note {
+            font-size: 12px;
+            color: #777;
+            line-height: 1.5;
+        }
         .study-analysis-empty { font-size: 13px; color: #888; text-align: center; padding: 24px 0; }
         @media (max-width: 980px) {
             .study-analysis-grid { grid-template-columns: 1fr; }
@@ -698,6 +727,45 @@
             font-size: 13px;
             min-height: 36px; /* Reserve space so layout does not jump */
         }
+        .study-explanation-wrap {
+            display: none;
+            width: 500px;
+            max-width: 90vw;
+            margin: -10px auto 24px;
+            box-sizing: border-box;
+            align-items: center;
+            gap: 8px;
+        }
+        .study-explanation-wrap.show { display: flex; }
+        .study-explanation-input {
+            width: 100%;
+            height: 34px;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font: inherit;
+            font-size: 13px;
+        }
+        .study-explanation-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .study-explanation-submit {
+            padding: 6px 10px;
+            font-size: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+        }
+        .study-explanation-submit:hover { background: #f5f5f5; }
+        .study-explanation-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         .loading {
             display: none;
             text-align: center;
@@ -739,6 +807,9 @@
                 </div>
                 <div class="modal-scores-toggle">
                     <label><input type="checkbox" id="showScoresCheckbox"> Show model scores</label>
+                </div>
+                <div class="modal-scores-toggle">
+                    <label><input type="checkbox" id="selfExplanationEnabledCheckbox"> Enable self-explanation</label>
                 </div>
                 <div class="modal-variation-params">
                     <div class="modal-variation-title">Variation range</div>
@@ -889,6 +960,12 @@
             </div>
             
             <div class="feedback" id="feedbackDiv" style="display: none;"></div>
+            <div class="study-explanation-wrap" id="studyExplanationWrap">
+                <input type="text" id="studyExplanationInput" class="study-explanation-input" placeholder="Write a brief self-explanation..." maxlength="2000">
+                <div class="study-explanation-actions">
+                    <button type="button" class="study-explanation-submit" id="studyExplanationSubmitBtn">Submit</button>
+                </div>
+            </div>
             </div>
             <div id="testModelSection">
                 <div class="test-model-upload">
@@ -919,6 +996,8 @@
                         <option value="">All events</option>
                     </select>
                     <button type="button" id="studyAnalysisRefreshBtn">Refresh</button>
+                    <button type="button" id="studyAnalysisExportJsonBtn">Export JSON</button>
+                    <button type="button" id="studyAnalysisExportCsvBtn">Export CSV</button>
                 </div>
                 <div id="studyAnalysisStatus" class="study-analysis-status"></div>
                 <div id="studyAnalysisCards" class="study-analysis-cards"></div>
@@ -930,6 +1009,10 @@
                     <div class="study-analysis-panel">
                         <div class="title">Event Timeline</div>
                         <div id="studyAnalysisTimeline"></div>
+                    </div>
+                    <div class="study-analysis-panel">
+                        <div class="title">Event Detail</div>
+                        <div id="studyAnalysisDetail"></div>
                     </div>
                 </div>
             </div>
@@ -1036,6 +1119,11 @@ let pendingMoveSnapshot = null;
 let lastAppliedModeValue = null;
 let lastCriterionValue = null;
 let studyAnalysisAllEvents = [];
+let studyAnalysisFilteredEvents = [];
+let studyAnalysisSelectedEventId = null;
+let studyAnalysisPreservedTimelineScrollTop = 0;
+let studyAnalysisPreservedPageScrollY = 0;
+let selfExplanationEnabled = false;
 window._lastLessPct = null;
 window._lastMorePct = null;
 
@@ -1066,6 +1154,13 @@ document.getElementById('showScoresCheckbox').addEventListener('change', functio
     showModelScores = this.checked;
     updateSlotLabelScores();
 });
+const selfExplanationEnabledCheckbox = document.getElementById('selfExplanationEnabledCheckbox');
+if (selfExplanationEnabledCheckbox) {
+    selfExplanationEnabledCheckbox.addEventListener('change', function () {
+        selfExplanationEnabled = !!this.checked;
+        updateStudyUI();
+    });
+}
 const chessReachedThresholdPctEl = document.getElementById('chessReachedThresholdPct');
 if (chessReachedThresholdPctEl) {
     chessReachedThresholdPctEl.addEventListener('input', function () {
@@ -1079,7 +1174,19 @@ if (chessReachedThresholdPctEl) {
 const studyModeSelect = document.getElementById('studyModeSelect');
 const studyUserWrap = document.getElementById('studyUserWrap');
 function updateStudyUI() {
-    if (studyUserWrap) studyUserWrap.classList.toggle('show', studyModeSelect && studyModeSelect.value === 'study');
+    const isStudy = studyModeSelect && studyModeSelect.value === 'study';
+    const mode = modeSelect ? modeSelect.value : '';
+    if (studyUserWrap) studyUserWrap.classList.toggle('show', isStudy);
+    const explanationWrap = document.getElementById('studyExplanationWrap');
+    const explanationInput = document.getElementById('studyExplanationInput');
+    const showExplanation = !!isStudy && selfExplanationEnabled && ['canvas', 'visual_aids', 'chess'].includes(mode);
+    if (explanationWrap) explanationWrap.classList.toggle('show', showExplanation);
+    if (explanationInput) {
+        if (mode === 'visual_aids') explanationInput.placeholder = 'Briefly explain what you noticed from the comparison...';
+        else if (mode === 'chess') explanationInput.placeholder = 'Briefly explain the current position or next move...';
+        else explanationInput.placeholder = 'Briefly explain your composition strategy...';
+        if (!showExplanation) explanationInput.value = '';
+    }
 }
 if (studyModeSelect) {
     studyModeSelect.addEventListener('change', updateStudyUI);
@@ -1146,6 +1253,8 @@ document.getElementById('statusModalResetBtn').addEventListener('click', functio
     currentStudySessionUser = null;
     activeStudyTask = null;
     currentStudyStateId = 'state_init';
+    selfExplanationEnabled = false;
+    if (selfExplanationEnabledCheckbox) selfExplanationEnabledCheckbox.checked = false;
     if (studyModeSelect) studyModeSelect.value = 'demo';
     if (modeSelect) modeSelect.value = 'visual_aids';
     if (studyUserInputEl) studyUserInputEl.value = '';
@@ -1173,8 +1282,10 @@ async function saveStudyImage(username, filename, imageDataUrl) {
         });
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || 'Save failed');
+        return true;
     } catch (e) {
         console.error('Study save failed:', e);
+        return false;
     }
 }
 
@@ -1252,13 +1363,17 @@ function getStudySessionContext() {
 
 async function postStudyEvent(username, event) {
     try {
-        await fetch(API_BASE + '/log_study_event', {
+        const res = await fetch(API_BASE + '/log_study_event', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: username, event: event })
         });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data.error) throw new Error(data.error || 'Study event save failed');
+        return true;
     } catch (e) {
         console.error('Study event save failed:', e);
+        return false;
     }
 }
 
@@ -1285,7 +1400,7 @@ async function ensureStudySessionStarted() {
 async function logStudyEvent(eventType, payload, options) {
     const opts = options || {};
     const ctx = opts.context || await ensureStudySessionStarted();
-    if (!ctx || !ctx.user || !ctx.sessionId) return;
+    if (!ctx || !ctx.user || !ctx.sessionId) return false;
     const sourceRects = opts.rectangles || rectangles;
     const eventPayload = payload && typeof payload === 'object' ? { ...payload } : {};
     if (eventPayload.rect_count == null) eventPayload.rect_count = sourceRects.length;
@@ -1302,7 +1417,7 @@ async function logStudyEvent(eventType, payload, options) {
         state_id: opts.stateId || currentStudyStateId,
         payload: eventPayload
     };
-    await postStudyEvent(ctx.user, event);
+    return await postStudyEvent(ctx.user, event);
 }
 
 function isTrackableTaskMode(mode) {
@@ -1384,6 +1499,48 @@ if (studyUserInputEl) {
     });
 }
 
+async function submitStudyExplanation() {
+    const inputEl = document.getElementById('studyExplanationInput');
+    const btnEl = document.getElementById('studyExplanationSubmitBtn');
+    if (!inputEl || !btnEl) return;
+    if (!isStudyMode() || !selfExplanationEnabled) {
+        showStatusToast('Enable self-explanation in the ML menu first.');
+        return;
+    }
+    const text = (inputEl.value || '').trim();
+    if (!text) {
+        showStatusToast('Enter a self-explanation before saving.');
+        return;
+    }
+    btnEl.disabled = true;
+    const messageEl = document.getElementById('chessMessageText');
+    const success = await logStudyEvent('self_explanation_submitted', {
+        text: text,
+        text_length: text.length,
+        has_visual_aids: !!(window._lastLessDataUrl && window._lastMoreDataUrl),
+        chess_message: messageEl ? (messageEl.textContent || '') : ''
+    }, { stateSnapshot: true });
+    btnEl.disabled = false;
+    if (!success) {
+        showStatusToast('Could not save self-explanation.');
+        return;
+    }
+    inputEl.value = '';
+    showStatusToast('Saved self-explanation.');
+}
+
+const studyExplanationInputEl = document.getElementById('studyExplanationInput');
+if (studyExplanationInputEl) {
+    studyExplanationInputEl.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitStudyExplanation();
+        }
+    });
+}
+const studyExplanationSubmitBtn = document.getElementById('studyExplanationSubmitBtn');
+if (studyExplanationSubmitBtn) studyExplanationSubmitBtn.addEventListener('click', submitStudyExplanation);
+
 // About modal: click EKPHRASIS to show project description and paper link
 document.getElementById('ekphrasisAboutBtn').addEventListener('click', function () {
     aboutModalOverlay.classList.add('show');
@@ -1410,6 +1567,7 @@ function applyMode() {
     const promptEl = document.querySelector('.prompt');
     const labelDataTopRow = document.getElementById('labelDataTopRow');
     const mode = modeSelect.value;
+    updateStudyUI();
 
     if (mode === 'study_analysis') {
         if (mainContent) mainContent.style.display = 'none';
@@ -1820,9 +1978,13 @@ function setStudyAnalysisEmpty(message) {
     const cardsEl = document.getElementById('studyAnalysisCards');
     const barsEl = document.getElementById('studyAnalysisBarChart');
     const timelineEl = document.getElementById('studyAnalysisTimeline');
+    const detailEl = document.getElementById('studyAnalysisDetail');
+    studyAnalysisFilteredEvents = [];
+    studyAnalysisSelectedEventId = null;
     if (cardsEl) cardsEl.innerHTML = '';
     if (barsEl) barsEl.innerHTML = `<div class="study-analysis-empty">${message}</div>`;
     if (timelineEl) timelineEl.innerHTML = `<div class="study-analysis-empty">${message}</div>`;
+    if (detailEl) detailEl.innerHTML = `<div class="study-analysis-empty">${message}</div>`;
 }
 
 function fillStudySelect(el, values, emptyLabel, selectedValue) {
@@ -1872,6 +2034,9 @@ function describeStudyEvent(event) {
     }
     if (event.event_type === 'feedback_error') {
         return payload.message || 'Error';
+    }
+    if (event.event_type === 'self_explanation_submitted') {
+        return payload.text || '';
     }
     const json = JSON.stringify(payload);
     return json.length > 180 ? json.slice(0, 180) + '…' : json;
@@ -1932,16 +2097,94 @@ function renderStudyAnalysisBars(events) {
 function renderStudyAnalysisTimeline(events) {
     const el = document.getElementById('studyAnalysisTimeline');
     if (!el) return;
+    const existingTimeline = el.querySelector('.study-analysis-timeline');
+    if (existingTimeline) studyAnalysisPreservedTimelineScrollTop = existingTimeline.scrollTop;
     if (!events.length) {
         el.innerHTML = '<div class="study-analysis-empty">No events for the current filter.</div>';
         return;
     }
     const items = events.slice(-200).reverse();
-    el.innerHTML = `<div class="study-analysis-timeline">${items.map(event => `<div class="study-analysis-event"><div class="study-analysis-event-meta">${event.timestamp || ''} · ${(event.session_id || '').slice(0, 18)} · ${event.app_mode || ''} · ${event.criterion || ''}</div><div class="study-analysis-event-type">${event.event_type}</div><div class="study-analysis-event-body">${describeStudyEvent(event)}</div></div>`).join('')}</div>`;
+    const formatLocalTimeWithUtc = function (utcIso) {
+        if (!utcIso) return '';
+        const t = new Date(utcIso);
+        if (Number.isNaN(t.getTime())) return utcIso;
+        return t.toLocaleString() + ' (' + utcIso + ')';
+    };
+    el.innerHTML = `<div class="study-analysis-timeline">${items.map(event => `<div class="study-analysis-event${event.event_id === studyAnalysisSelectedEventId ? ' selected' : ''}" data-event-id="${event.event_id || ''}"><div class="study-analysis-event-meta">${formatLocalTimeWithUtc(event.timestamp)} · ${(event.session_id || '').slice(0, 18)} · ${event.app_mode || ''} · ${event.criterion || ''}</div><div class="study-analysis-event-type">${event.event_type}</div><div class="study-analysis-event-body">${describeStudyEvent(event)}</div></div>`).join('')}</div>`;
+    const nextTimeline = el.querySelector('.study-analysis-timeline');
+    if (nextTimeline) nextTimeline.scrollTop = studyAnalysisPreservedTimelineScrollTop || 0;
+    el.querySelectorAll('.study-analysis-event').forEach(node => {
+        node.addEventListener('click', function () {
+            const timeline = el.querySelector('.study-analysis-timeline');
+            if (timeline) studyAnalysisPreservedTimelineScrollTop = timeline.scrollTop;
+            studyAnalysisPreservedPageScrollY = window.scrollY;
+            studyAnalysisSelectedEventId = this.getAttribute('data-event-id') || null;
+            renderStudyAnalysis();
+            requestAnimationFrame(function () {
+                window.scrollTo({ top: studyAnalysisPreservedPageScrollY, left: 0, behavior: 'auto' });
+                const restoredTimeline = el.querySelector('.study-analysis-timeline');
+                if (restoredTimeline) restoredTimeline.scrollTop = studyAnalysisPreservedTimelineScrollTop || 0;
+            });
+        });
+    });
 }
 
-function renderStudyAnalysis() {
-    const user = (document.getElementById('studyAnalysisUserSelect') || {}).value || '';
+function getStudyImageUrl(username, filename) {
+    if (!username || !filename) return '';
+    return API_BASE + '/study_image?' + new URLSearchParams({ username: username, filename: filename }).toString();
+}
+
+function renderStudyAnalysisImageCard(label, src, alt) {
+    if (!src) {
+        return `<div class="study-analysis-detail-card"><div class="label">${label}</div><div class="study-analysis-detail-note">Image unavailable.</div></div>`;
+    }
+    return `<div class="study-analysis-detail-card"><div class="label">${label}</div><img src="${src}" alt="${alt}"></div>`;
+}
+
+function renderStudyAnalysisDetail(event) {
+    const detailEl = document.getElementById('studyAnalysisDetail');
+    if (!detailEl) return;
+    if (!event) {
+        detailEl.innerHTML = '<div class="study-analysis-empty">Select a timeline event to inspect images.</div>';
+        return;
+    }
+    const payload = event.payload || {};
+    const imageFiles = payload.image_files || {};
+    const snapshot = Array.isArray(payload.state_snapshot) ? payload.state_snapshot : [];
+    const participantId = event.participant_id || (document.getElementById('studyAnalysisUserSelect') || {}).value || '';
+    const compositionSrc = snapshot.length ? generateImageDataUrl(snapshot, 240) : '';
+    const localTime = (function () {
+        const utcIso = event.timestamp || '';
+        if (!utcIso) return '';
+        const t = new Date(utcIso);
+        if (Number.isNaN(t.getTime())) return utcIso;
+        return t.toLocaleString() + ' (' + utcIso + ')';
+    })();
+    const metaHtml = `<div class="study-analysis-detail-meta">${localTime}<br>${event.event_type} · ${event.app_mode || ''} · ${event.criterion || ''}</div>`;
+    let cards = [];
+    let note = '';
+    if (event.event_type === 'feedback_returned') {
+        cards = [
+            renderStudyAnalysisImageCard('Composition', compositionSrc, 'Composition snapshot'),
+            renderStudyAnalysisImageCard('Less', getStudyImageUrl(participantId, imageFiles.less), 'Less feedback image'),
+            renderStudyAnalysisImageCard('More', getStudyImageUrl(participantId, imageFiles.more), 'More feedback image')
+        ];
+        if (!imageFiles.less || !imageFiles.more) note = 'This is likely a legacy event logged before image filename fields were added, so less/more images cannot be resolved automatically.';
+    } else if (event.event_type === 'chess_computer_move') {
+        cards = [
+            renderStudyAnalysisImageCard('Composition', compositionSrc, 'Composition snapshot'),
+            renderStudyAnalysisImageCard('Computer Result', getStudyImageUrl(participantId, imageFiles.result), 'Computer result image')
+        ];
+        if (!imageFiles.result) note = 'This is likely a legacy event logged before image filename fields were added, so the saved result image cannot be resolved automatically.';
+    } else {
+        note = 'No visual detail is available for this event type in the current MVP.';
+    }
+    detailEl.innerHTML = metaHtml +
+        (cards.length ? `<div class="study-analysis-detail-images">${cards.join('')}</div>` : '') +
+        (note ? `<div class="study-analysis-detail-note">${note}</div>` : '');
+}
+
+function getFilteredStudyEvents() {
     const sessionId = (document.getElementById('studyAnalysisSessionSelect') || {}).value || '';
     const appMode = (document.getElementById('studyAnalysisModeFilter') || {}).value || '';
     const criterion = (document.getElementById('studyAnalysisCriterionFilter') || {}).value || '';
@@ -1951,6 +2194,89 @@ function renderStudyAnalysis() {
     if (appMode) events = events.filter(event => (event.app_mode || '') === appMode);
     if (criterion) events = events.filter(event => (event.criterion || '') === criterion);
     if (eventType) events = events.filter(event => (event.event_type || '') === eventType);
+    return events;
+}
+
+function downloadStudyExport(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+}
+
+function getStudyExportFilename(ext) {
+    const user = (document.getElementById('studyAnalysisUserSelect') || {}).value || 'study';
+    const sessionId = (document.getElementById('studyAnalysisSessionSelect') || {}).value || 'all_sessions';
+    const eventType = (document.getElementById('studyAnalysisEventTypeFilter') || {}).value || 'all_events';
+    const safe = function (value) {
+        return String(value || '').replace(/[^\w.-]/g, '_');
+    };
+    return [safe(user), safe(sessionId), safe(eventType), 'events'].join('-') + '.' + ext;
+}
+
+function escapeCsv(value) {
+    const str = value == null ? '' : String(value);
+    return /[",\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+}
+
+function convertStudyEventsToCsv(events) {
+    const columns = ['timestamp', 'event_id', 'participant_id', 'session_id', 'study_mode', 'app_mode', 'criterion', 'event_type', 'state_id', 'server_received_at', 'payload_json'];
+    const rows = [columns.join(',')];
+    events.forEach(event => {
+        rows.push(columns.map(column => {
+            const value = column === 'payload_json' ? JSON.stringify(event.payload || {}) : event[column];
+            return escapeCsv(value);
+        }).join(','));
+    });
+    return rows.join('\n');
+}
+
+function exportStudyAnalysisJson() {
+    const user = (document.getElementById('studyAnalysisUserSelect') || {}).value || '';
+    const events = studyAnalysisFilteredEvents.slice();
+    if (!user || !events.length) {
+        showStatusToast('No filtered study events to export.');
+        return;
+    }
+    const payload = {
+        exported_at: new Date().toISOString(),
+        username: user,
+        filters: {
+            session_id: (document.getElementById('studyAnalysisSessionSelect') || {}).value || '',
+            app_mode: (document.getElementById('studyAnalysisModeFilter') || {}).value || '',
+            criterion: (document.getElementById('studyAnalysisCriterionFilter') || {}).value || '',
+            event_type: (document.getElementById('studyAnalysisEventTypeFilter') || {}).value || ''
+        },
+        events: events
+    };
+    downloadStudyExport(getStudyExportFilename('json'), JSON.stringify(payload, null, 2), 'application/json');
+    showStatusToast('Exported study events as JSON.');
+}
+
+function exportStudyAnalysisCsv() {
+    const user = (document.getElementById('studyAnalysisUserSelect') || {}).value || '';
+    const events = studyAnalysisFilteredEvents.slice();
+    if (!user || !events.length) {
+        showStatusToast('No filtered study events to export.');
+        return;
+    }
+    downloadStudyExport(getStudyExportFilename('csv'), convertStudyEventsToCsv(events), 'text/csv;charset=utf-8');
+    showStatusToast('Exported study events as CSV.');
+}
+
+function renderStudyAnalysis() {
+    const user = (document.getElementById('studyAnalysisUserSelect') || {}).value || '';
+    const events = getFilteredStudyEvents();
+    studyAnalysisFilteredEvents = events.slice();
+    const selectedEvent = events.find(event => event.event_id === studyAnalysisSelectedEventId) || null;
+    if (!selectedEvent && !events.some(event => event.event_id === studyAnalysisSelectedEventId)) {
+        studyAnalysisSelectedEventId = null;
+    }
     const statusEl = document.getElementById('studyAnalysisStatus');
     if (statusEl) statusEl.textContent = user ? `${events.length} events shown for ${user}.` : 'Select a user to load study events.';
     if (!user) {
@@ -1960,6 +2286,7 @@ function renderStudyAnalysis() {
     renderStudyAnalysisCards(events);
     renderStudyAnalysisBars(events);
     renderStudyAnalysisTimeline(events);
+    renderStudyAnalysisDetail(selectedEvent);
 }
 
 async function refreshStudyAnalysisUsers() {
@@ -2018,6 +2345,10 @@ const studyAnalysisRefreshBtn = document.getElementById('studyAnalysisRefreshBtn
 if (studyAnalysisRefreshBtn) studyAnalysisRefreshBtn.addEventListener('click', function () {
     refreshStudyAnalysisUsers().then(refreshStudyAnalysis);
 });
+const studyAnalysisExportJsonBtn = document.getElementById('studyAnalysisExportJsonBtn');
+if (studyAnalysisExportJsonBtn) studyAnalysisExportJsonBtn.addEventListener('click', exportStudyAnalysisJson);
+const studyAnalysisExportCsvBtn = document.getElementById('studyAnalysisExportCsvBtn');
+if (studyAnalysisExportCsvBtn) studyAnalysisExportCsvBtn.addEventListener('click', exportStudyAnalysisCsv);
 
 // Fit content in viewport without scroll (scale down if needed)
 function fitInViewport() {
@@ -2279,24 +2610,28 @@ async function computerTurn() {
         } else {
             setChessMessage('');
         }
-        logStudyEvent('chess_computer_move', {
-            strategy: strategy,
-            attempt_count: attemptCount,
-            selected_index: chosenIndex,
-            block: snapshotRect(chosen),
-            score_pct: (score * 100).toFixed(1),
-            class_label: cls,
-            reached_goal: reachedGoal
-        }, { stateSnapshot: true });
+        let resultImageFiles = null;
         if (isStudyMode()) {
             const user = getStudyUsername();
             if (user && studyChessCurrentN > 0) {
                 const ts = getStudyTimestamp();
                 const scoreStr = (score * 100).toFixed(1);
                 const imgB64 = generateImageAsBase64(rectangles);
-                saveStudyImage(user, `${user}-chess-result-${studyChessCurrentN}-${ts}-${cls.toLowerCase()}-${scoreStr}.png`, imgB64);
+                const resultFilename = `${user}-chess-result-${studyChessCurrentN}-${ts}-${cls.toLowerCase()}-${scoreStr}.png`;
+                await saveStudyImage(user, resultFilename, imgB64);
+                resultImageFiles = { result: resultFilename };
             }
         }
+        await logStudyEvent('chess_computer_move', {
+            strategy: strategy,
+            attempt_count: attemptCount,
+            selected_index: chosenIndex,
+            block: snapshotRect(chosen),
+            score_pct: (score * 100).toFixed(1),
+            class_label: cls,
+            reached_goal: reachedGoal,
+            image_files: resultImageFiles
+        }, { stateSnapshot: true });
     } catch (e) {
         logStudyEvent('feedback_error', {
             stage: 'chess_computer_move',
@@ -2733,20 +3068,7 @@ async function evaluateWithAI() {
         document.getElementById('leftSlot').classList.add('has-result');
         document.getElementById('rightSlot').classList.add('has-result');
         updateSlotLabelScores();
-
-        logStudyEvent('feedback_returned', {
-            attempt_count: attemptCount,
-            candidate_count: 20,
-            returned_count: (result.all_results || []).length,
-            fallback_used: fallbackUsed,
-            user_prediction: userResult ? {
-                class_label: userResult.class === 'class_1' ? 'More' : 'Less',
-                confidence_pct: (userResult.confidence * 100).toFixed(1)
-            } : null,
-            less_selected: { index: lessIndex, confidence_pct: (lessPct * 100).toFixed(1), class_label: lessClass },
-            more_selected: { index: moreIndex, confidence_pct: (morePct * 100).toFixed(1), class_label: moreClass }
-        }, { stateSnapshot: true });
-
+        let feedbackImageFiles = null;
         if (isStudyMode()) {
             const user = getStudyUsername();
             if (user) {
@@ -2759,11 +3081,34 @@ async function evaluateWithAI() {
                 const compB64 = generateImageAsBase64(allVariations[0]);
                 const lessB64 = generateImageAsBase64(allVariations[lessIndex]);
                 const moreB64 = generateImageAsBase64(allVariations[moreIndex]);
-                saveStudyImage(user, `${user}-v-composition-${n}-${ts}-${userCls}-${userScore}.png`, compB64);
-                saveStudyImage(user, `${user}-v-visualaids-less-${n}-${ts}-${lessScore}.png`, lessB64);
-                saveStudyImage(user, `${user}-v-visualaids-more-${n}-${ts}-${moreScorePct}.png`, moreB64);
+                const compositionFilename = `${user}-v-composition-${n}-${ts}-${userCls}-${userScore}.png`;
+                const lessFilename = `${user}-v-visualaids-less-${n}-${ts}-${lessScore}.png`;
+                const moreFilename = `${user}-v-visualaids-more-${n}-${ts}-${moreScorePct}.png`;
+                feedbackImageFiles = {
+                    composition: compositionFilename,
+                    less: lessFilename,
+                    more: moreFilename
+                };
+                await Promise.all([
+                    saveStudyImage(user, compositionFilename, compB64),
+                    saveStudyImage(user, lessFilename, lessB64),
+                    saveStudyImage(user, moreFilename, moreB64)
+                ]);
             }
         }
+        await logStudyEvent('feedback_returned', {
+            attempt_count: attemptCount,
+            candidate_count: 20,
+            returned_count: (result.all_results || []).length,
+            fallback_used: fallbackUsed,
+            user_prediction: userResult ? {
+                class_label: userResult.class === 'class_1' ? 'More' : 'Less',
+                confidence_pct: (userResult.confidence * 100).toFixed(1)
+            } : null,
+            less_selected: { index: lessIndex, confidence_pct: (lessPct * 100).toFixed(1), class_label: lessClass },
+            more_selected: { index: moreIndex, confidence_pct: (morePct * 100).toFixed(1), class_label: moreClass },
+            image_files: feedbackImageFiles
+        }, { stateSnapshot: true });
 
     } catch (error) {
         console.error('Error evaluating with AI:', error);
