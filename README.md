@@ -122,7 +122,7 @@ python start_ekphrasis.py
 
 - **Architecture:** VGG16 (ImageNet, frozen) + Flatten + Dense(128) + Dense(1, sigmoid).
 - **Training:** `train_and_save_model.py`; reads `dataset/<vocabulary_id>/class_0` and `class_1`; 80/20 train/val; class weights only when imbalanced; saves `ml/models/<vocabulary_id>.h5`.
-- **Adding a vocabulary:** Add folder `dataset/<id>/class_0`, `class_1`; run `python train_and_save_model.py <id>`; add `{'id':'<id>','name':'...','model_file':'models/<id>.h5'}` to `CRITERIA` in `model_server.py`; restart server.
+- **Adding a vocabulary:** Add folder `dataset/<id>/class_0`, `class_1`; run `python train_and_save_model.py <id>`; add `{'id':'<id>','name':'...','model_file':'models/<id>.h5'}` to `CRITERIA` in `model_server.py`; restart server. The system ships with six first-tier vocabularies (Visual Balance, Visual Harmony, Visual Hierarchy, Contrast, Rhythm, Emphasis); only those with trained models under `ml/models/<id>.h5` support prediction; all appear in the dropdown so you can label data for any of them.
 
 ## Testing
 

@@ -9,6 +9,7 @@ import random
 import base64
 import tempfile
 import datetime
+import json
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -20,6 +21,11 @@ INTERFACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 # model_file is relative to the ml/ directory (e.g. models/visual_balance.h5).
 CRITERIA = [
     {'id': 'visual_balance', 'name': 'Visual Balance', 'model_file': 'models/visual_balance.h5'},
+    {'id': 'visual_harmony', 'name': 'Visual Harmony', 'model_file': 'models/visual_harmony.h5'},
+    {'id': 'visual_hierarchy', 'name': 'Visual Hierarchy', 'model_file': 'models/visual_hierarchy.h5'},
+    {'id': 'contrast', 'name': 'Contrast', 'model_file': 'models/contrast.h5'},
+    {'id': 'rhythm', 'name': 'Rhythm', 'model_file': 'models/rhythm.h5'},
+    {'id': 'emphasis', 'name': 'Emphasis', 'model_file': 'models/emphasis.h5'},
 ]
 
 # Load all criterion models at startup (criterion_id -> Keras model)
@@ -95,8 +101,8 @@ def predict():
 
 @app.route('/criteria', methods=['GET'])
 def list_criteria():
-    """Return list of design vocabularies (id, name) for the dropdown."""
-    return jsonify([{'id': c['id'], 'name': c['name']} for c in CRITERIA if c['id'] in models])
+    """Return list of design vocabularies (id, name) for the dropdown. Includes all CRITERIA so users can label data for any vocabulary; only those with loaded models support prediction."""
+    return jsonify([{'id': c['id'], 'name': c['name']} for c in CRITERIA])
 
 def _sanitize_for_folder(s):
     """Allow only alphanumeric, underscore, hyphen for folder names."""
@@ -115,6 +121,28 @@ def _study_user_dir(project_root, username):
     """Path: dataset/study/{username}/"""
     user = _sanitize_for_folder(username)
     return os.path.join(project_root, 'dataset', 'study', user)
+
+def _study_events_path(project_root, username):
+    """Path: dataset/study/{username}/events.jsonl"""
+    return os.path.join(_study_user_dir(project_root, username), 'events.jsonl')
+
+def _read_study_events(project_root, username):
+    """Read JSONL study events for one user; skip malformed lines."""
+    events_path = _study_events_path(project_root, username)
+    if not os.path.isfile(events_path):
+        return []
+    events = []
+    with open(events_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except Exception:
+                pass
+    events.sort(key=lambda e: (e.get('timestamp') or '', e.get('event_id') or ''))
+    return events
 
 def _label_folder_path(project_root, vocabulary, labeler):
     """Path: dataset/new/{vocabulary}_{date}_{labeler}"""
@@ -256,6 +284,75 @@ def save_study():
         with open(filepath, 'wb') as f:
             f.write(image_data)
         return jsonify({"success": True, "path": filepath})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/log_study_event', methods=['POST'])
+def log_study_event():
+    """
+    Append one structured study event to dataset/study/{username}/events.jsonl.
+    Expects JSON: { username: str, event: { ... } }
+    """
+    try:
+        data = request.get_json() or {}
+        username = (data.get('username') or '').strip()
+        event = data.get('event')
+        if not username or not isinstance(event, dict):
+            return jsonify({"error": "Missing username or event"}), 400
+        project_root = os.path.dirname(INTERFACE_DIR)
+        user_dir = _study_user_dir(project_root, username)
+        os.makedirs(user_dir, exist_ok=True)
+        events_path = _study_events_path(project_root, username)
+        event.setdefault('participant_id', username)
+        event.setdefault('server_received_at', datetime.datetime.utcnow().isoformat() + 'Z')
+        with open(events_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(event, ensure_ascii=True) + '\n')
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/study_users', methods=['GET'])
+def study_users():
+    """Return all study usernames that have a folder under dataset/study/."""
+    try:
+        project_root = os.path.dirname(INTERFACE_DIR)
+        study_dir = os.path.join(project_root, 'dataset', 'study')
+        if not os.path.isdir(study_dir):
+            return jsonify([])
+        users = sorted([name for name in os.listdir(study_dir) if os.path.isdir(os.path.join(study_dir, name))])
+        return jsonify(users)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/study_events', methods=['GET'])
+def study_events():
+    """Return structured study events for one user, with optional filtering."""
+    try:
+        username = (request.args.get('username') or '').strip()
+        if not username:
+            return jsonify({"error": "Missing username"}), 400
+        session_id = (request.args.get('session_id') or '').strip()
+        app_mode = (request.args.get('app_mode') or '').strip()
+        criterion = (request.args.get('criterion') or '').strip()
+        event_type = (request.args.get('event_type') or '').strip()
+        project_root = os.path.dirname(INTERFACE_DIR)
+        all_events = _read_study_events(project_root, username)
+        filtered = all_events
+        if session_id:
+            filtered = [e for e in filtered if (e.get('session_id') or '') == session_id]
+        if app_mode:
+            filtered = [e for e in filtered if (e.get('app_mode') or '') == app_mode]
+        if criterion:
+            filtered = [e for e in filtered if (e.get('criterion') or '') == criterion]
+        if event_type:
+            filtered = [e for e in filtered if (e.get('event_type') or '') == event_type]
+        return jsonify({
+            "events": filtered,
+            "available_sessions": sorted({e.get('session_id') for e in all_events if e.get('session_id')}),
+            "available_modes": sorted({e.get('app_mode') for e in all_events if e.get('app_mode')}),
+            "available_criteria": sorted({e.get('criterion') for e in all_events if e.get('criterion')}),
+            "available_event_types": sorted({e.get('event_type') for e in all_events if e.get('event_type')})
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

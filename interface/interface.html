@@ -589,6 +589,36 @@
         .test-model-card img { display: block; width: 160px; height: 160px; object-fit: contain; border: 1px solid #ccc; background: #f5f5f5; box-sizing: border-box; }
         .test-model-card .score { margin-top: 6px; font-size: 12px; color: #888; text-align: center; width: 100%; }
         .test-model-error { color: #c00; padding: 12px; }
+        #studyAnalysisSection { display: none; padding: 24px; max-width: 100%; width: 100%; box-sizing: border-box; margin: 0; overflow-y: auto; min-width: 0; }
+        #studyAnalysisSection.show { display: block; }
+        .content-wrapper.test-model-active #studyAnalysisSection { min-width: 0; }
+        .study-analysis-toolbar { margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .study-analysis-toolbar select,
+        .study-analysis-toolbar button { padding: 4px 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 8px; min-height: 26px; box-sizing: border-box; background: #fff; color: #333; }
+        .study-analysis-toolbar button { cursor: pointer; }
+        .study-analysis-toolbar button:hover { background: #f5f5f5; }
+        .study-analysis-status { font-size: 12px; color: #888; margin-bottom: 16px; min-height: 18px; text-align: center; }
+        .study-analysis-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .study-analysis-card { border: 1px solid #ddd; border-radius: 10px; background: #fff; padding: 12px; }
+        .study-analysis-card .label { font-size: 12px; color: #666; margin-bottom: 6px; }
+        .study-analysis-card .value { font-size: 24px; line-height: 1.2; color: #111; font-weight: 600; }
+        .study-analysis-grid { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 16px; align-items: start; }
+        .study-analysis-panel { border: 1px solid #ddd; border-radius: 10px; background: #fff; padding: 14px; }
+        .study-analysis-panel .title { font-size: 14px; font-weight: 600; color: #111; margin-bottom: 10px; }
+        .study-analysis-bars { display: flex; flex-direction: column; gap: 8px; }
+        .study-analysis-bar-row { display: grid; grid-template-columns: 150px 1fr 42px; gap: 10px; align-items: center; font-size: 12px; color: #555; }
+        .study-analysis-bar-track { height: 10px; background: #eee; border-radius: 999px; overflow: hidden; }
+        .study-analysis-bar-fill { height: 100%; background: #333; border-radius: 999px; }
+        .study-analysis-timeline { display: flex; flex-direction: column; gap: 8px; max-height: 520px; overflow-y: auto; }
+        .study-analysis-event { border: 1px solid #eee; border-radius: 8px; padding: 10px; background: #fafafa; }
+        .study-analysis-event-meta { font-size: 11px; color: #777; margin-bottom: 4px; }
+        .study-analysis-event-type { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 4px; }
+        .study-analysis-event-body { font-size: 12px; color: #555; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+        .study-analysis-empty { font-size: 13px; color: #888; text-align: center; padding: 24px 0; }
+        @media (max-width: 980px) {
+            .study-analysis-grid { grid-template-columns: 1fr; }
+            .study-analysis-bar-row { grid-template-columns: 120px 1fr 42px; }
+        }
         .criterion-label {
             font-size: 14px;
             color: #333;
@@ -871,6 +901,38 @@
                 <div id="testModelError" class="test-model-error" style="display: none; text-align: center;"></div>
                 <div id="testModelResults" class="test-model-results"></div>
             </div>
+            <div id="studyAnalysisSection">
+                <div class="study-analysis-toolbar">
+                    <select id="studyAnalysisUserSelect">
+                        <option value="">Select user</option>
+                    </select>
+                    <select id="studyAnalysisSessionSelect">
+                        <option value="">All sessions</option>
+                    </select>
+                    <select id="studyAnalysisModeFilter">
+                        <option value="">All modes</option>
+                    </select>
+                    <select id="studyAnalysisCriterionFilter">
+                        <option value="">All vocabularies</option>
+                    </select>
+                    <select id="studyAnalysisEventTypeFilter">
+                        <option value="">All events</option>
+                    </select>
+                    <button type="button" id="studyAnalysisRefreshBtn">Refresh</button>
+                </div>
+                <div id="studyAnalysisStatus" class="study-analysis-status"></div>
+                <div id="studyAnalysisCards" class="study-analysis-cards"></div>
+                <div class="study-analysis-grid">
+                    <div class="study-analysis-panel">
+                        <div class="title">Event Types</div>
+                        <div id="studyAnalysisBarChart"></div>
+                    </div>
+                    <div class="study-analysis-panel">
+                        <div class="title">Event Timeline</div>
+                        <div id="studyAnalysisTimeline"></div>
+                    </div>
+                </div>
+            </div>
         </div>
         </div>
         <header class="topbar bottombar">
@@ -882,6 +944,7 @@
                     <option value="chess">Chess</option>
                     <option value="test_model">Test Model</option>
                     <option value="label_data">Label Data</option>
+                    <option value="study_analysis">Study Analytics</option>
                 </select>
             </div>
             <div class="topbar-center">
@@ -892,6 +955,11 @@
                 <label for="criterionSelect" class="criterion-label">Practice vocabulary:</label>
                 <select id="criterionSelect" class="criterion-select">
                     <option value="visual_balance">Visual Balance</option>
+                    <option value="visual_harmony">Visual Harmony</option>
+                    <option value="visual_hierarchy">Visual Hierarchy</option>
+                    <option value="contrast">Contrast</option>
+                    <option value="rhythm">Rhythm</option>
+                    <option value="emphasis">Emphasis</option>
                 </select>
             </div>
             <div class="topbar-right" style="position: relative;">
@@ -922,7 +990,14 @@ let currentColor = '#D9D9D9'; // Default color
 const API_BASE = (window.location.hostname === 'localhost' && window.location.port === '5001') ? '' : 'http://localhost:5001';
 
 // Design vocabularies: loaded from API (GET /criteria), fallback if server offline
-let CRITERIA_LIST = [{ id: 'visual_balance', name: 'Visual Balance' }];
+let CRITERIA_LIST = [
+    { id: 'visual_balance', name: 'Visual Balance' },
+    { id: 'visual_harmony', name: 'Visual Harmony' },
+    { id: 'visual_hierarchy', name: 'Visual Hierarchy' },
+    { id: 'contrast', name: 'Contrast' },
+    { id: 'rhythm', name: 'Rhythm' },
+    { id: 'emphasis', name: 'Emphasis' }
+];
 
 const canvas = document.getElementById('drawingCanvas');
 const ctx = canvas.getContext('2d');
@@ -952,6 +1027,15 @@ let chessTargetScorePercent = 0.8;
 let studyCompositionCountV = 0;
 let studyCompositionCountC = 0;
 let studyChessCurrentN = 0;
+let currentStudySessionId = null;
+let currentStudySessionUser = null;
+let currentStudyStateId = 'state_init';
+let blockIdCounter = 0;
+let activeStudyTask = null;
+let pendingMoveSnapshot = null;
+let lastAppliedModeValue = null;
+let lastCriterionValue = null;
+let studyAnalysisAllEvents = [];
 window._lastLessPct = null;
 window._lastMorePct = null;
 
@@ -1005,6 +1089,8 @@ updateStudyUI();
 const STORAGE_STUDY_MODE = 'ekphrasis_study_mode';
 const STORAGE_APP_MODE = 'ekphrasis_app_mode';
 const STORAGE_USERNAME = 'ekphrasis_username';
+const STORAGE_STUDY_SESSION_ID = 'ekphrasis_study_session_id';
+const STORAGE_STUDY_SESSION_USER = 'ekphrasis_study_session_user';
 
 function restoreFromStorage() {
     try {
@@ -1053,7 +1139,13 @@ document.getElementById('statusModalResetBtn').addEventListener('click', functio
         localStorage.removeItem(STORAGE_STUDY_MODE);
         localStorage.removeItem(STORAGE_APP_MODE);
         localStorage.removeItem(STORAGE_USERNAME);
+        localStorage.removeItem(STORAGE_STUDY_SESSION_ID);
+        localStorage.removeItem(STORAGE_STUDY_SESSION_USER);
     } catch (_) {}
+    currentStudySessionId = null;
+    currentStudySessionUser = null;
+    activeStudyTask = null;
+    currentStudyStateId = 'state_init';
     if (studyModeSelect) studyModeSelect.value = 'demo';
     if (modeSelect) modeSelect.value = 'visual_aids';
     if (studyUserInputEl) studyUserInputEl.value = '';
@@ -1086,6 +1178,212 @@ async function saveStudyImage(username, filename, imageDataUrl) {
     }
 }
 
+function createStudyId(prefix) {
+    return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+function roundStudyNumber(n) {
+    return Math.round((Number(n) || 0) * 10) / 10;
+}
+
+function ensureBlockId(rect) {
+    if (rect && !rect.id) rect.id = 'b' + (++blockIdCounter);
+    return rect ? rect.id : null;
+}
+
+function snapshotRect(rect) {
+    if (!rect) return null;
+    ensureBlockId(rect);
+    return {
+        block_id: rect.id,
+        x: roundStudyNumber(rect.x),
+        y: roundStudyNumber(rect.y),
+        width: roundStudyNumber(rect.width),
+        height: roundStudyNumber(rect.height),
+        color: rect.color
+    };
+}
+
+function snapshotRectangles(rectList) {
+    return (rectList || []).map(rect => snapshotRect(rect));
+}
+
+function advanceStudyState() {
+    currentStudyStateId = createStudyId('state');
+    return currentStudyStateId;
+}
+
+function clearStoredStudySession() {
+    currentStudySessionId = null;
+    currentStudySessionUser = null;
+    activeStudyTask = null;
+    currentStudyStateId = 'state_init';
+    pendingMoveSnapshot = null;
+    try {
+        localStorage.removeItem(STORAGE_STUDY_SESSION_ID);
+        localStorage.removeItem(STORAGE_STUDY_SESSION_USER);
+    } catch (_) {}
+}
+
+function getStudySessionContext() {
+    if (!isStudyMode()) return null;
+    const user = getStudyUsername();
+    if (!user) return null;
+    if (currentStudySessionId && currentStudySessionUser === user) {
+        return { user: user, sessionId: currentStudySessionId, created: false };
+    }
+    try {
+        const savedUser = localStorage.getItem(STORAGE_STUDY_SESSION_USER);
+        const savedSession = localStorage.getItem(STORAGE_STUDY_SESSION_ID);
+        if (savedUser === user && savedSession) {
+            currentStudySessionUser = savedUser;
+            currentStudySessionId = savedSession;
+            return { user: user, sessionId: currentStudySessionId, created: false };
+        }
+    } catch (_) {}
+    currentStudySessionUser = user;
+    currentStudySessionId = createStudyId('session');
+    try {
+        localStorage.setItem(STORAGE_STUDY_SESSION_USER, currentStudySessionUser);
+        localStorage.setItem(STORAGE_STUDY_SESSION_ID, currentStudySessionId);
+    } catch (_) {}
+    return { user: user, sessionId: currentStudySessionId, created: true };
+}
+
+async function postStudyEvent(username, event) {
+    try {
+        await fetch(API_BASE + '/log_study_event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, event: event })
+        });
+    } catch (e) {
+        console.error('Study event save failed:', e);
+    }
+}
+
+async function ensureStudySessionStarted() {
+    const ctx = getStudySessionContext();
+    if (!ctx) return null;
+    if (ctx.created) {
+        await postStudyEvent(ctx.user, {
+            event_id: createStudyId('evt'),
+            timestamp: new Date().toISOString(),
+            participant_id: ctx.user,
+            session_id: ctx.sessionId,
+            study_mode: 'study',
+            app_mode: modeSelect.value,
+            criterion: criterionSelect.value,
+            event_type: 'study_session_started',
+            state_id: currentStudyStateId,
+            payload: { rect_count: rectangles.length }
+        });
+    }
+    return ctx;
+}
+
+async function logStudyEvent(eventType, payload, options) {
+    const opts = options || {};
+    const ctx = opts.context || await ensureStudySessionStarted();
+    if (!ctx || !ctx.user || !ctx.sessionId) return;
+    const sourceRects = opts.rectangles || rectangles;
+    const eventPayload = payload && typeof payload === 'object' ? { ...payload } : {};
+    if (eventPayload.rect_count == null) eventPayload.rect_count = sourceRects.length;
+    if (opts.stateSnapshot) eventPayload.state_snapshot = snapshotRectangles(sourceRects);
+    const event = {
+        event_id: createStudyId('evt'),
+        timestamp: new Date().toISOString(),
+        participant_id: ctx.user,
+        session_id: ctx.sessionId,
+        study_mode: 'study',
+        app_mode: opts.appMode || modeSelect.value,
+        criterion: opts.criterion || criterionSelect.value,
+        event_type: eventType,
+        state_id: opts.stateId || currentStudyStateId,
+        payload: eventPayload
+    };
+    await postStudyEvent(ctx.user, event);
+}
+
+function isTrackableTaskMode(mode) {
+    return ['canvas', 'visual_aids', 'chess', 'label_data'].includes(mode);
+}
+
+async function syncStudyTask(reason) {
+    const user = getStudyUsername();
+    const mode = modeSelect.value;
+    const criterion = criterionSelect.value;
+    const canTrack = isStudyMode() && !!user && isTrackableTaskMode(mode);
+
+    if (activeStudyTask) {
+        const changed = !canTrack ||
+            activeStudyTask.user !== user ||
+            activeStudyTask.appMode !== mode ||
+            activeStudyTask.criterion !== criterion;
+        if (changed) {
+            await logStudyEvent('task_completed', {
+                reason: reason,
+                task_started_at: activeStudyTask.startedAt
+            }, {
+                context: { user: activeStudyTask.user, sessionId: activeStudyTask.sessionId },
+                appMode: activeStudyTask.appMode,
+                criterion: activeStudyTask.criterion,
+                stateSnapshot: true
+            });
+            activeStudyTask = null;
+        }
+    }
+
+    if (canTrack && !activeStudyTask) {
+        const ctx = await ensureStudySessionStarted();
+        if (!ctx) return;
+        activeStudyTask = {
+            user: ctx.user,
+            sessionId: ctx.sessionId,
+            appMode: mode,
+            criterion: criterion,
+            startedAt: new Date().toISOString()
+        };
+        await logStudyEvent('task_started', { reason: reason }, {
+            context: { user: ctx.user, sessionId: ctx.sessionId },
+            appMode: mode,
+            criterion: criterion,
+            stateSnapshot: true
+        });
+    }
+}
+
+if (studyModeSelect) {
+    studyModeSelect.addEventListener('change', function () {
+        if (studyModeSelect.value !== 'study') {
+            syncStudyTask('study_mode_changed');
+            clearStoredStudySession();
+        } else {
+            syncStudyTask('study_mode_changed');
+        }
+    });
+}
+
+if (studyUserInputEl) {
+    studyUserInputEl.addEventListener('change', function () {
+        const nextUser = getStudyUsername();
+        if (activeStudyTask && activeStudyTask.user && activeStudyTask.user !== nextUser) {
+            logStudyEvent('task_completed', {
+                reason: 'participant_changed',
+                task_started_at: activeStudyTask.startedAt
+            }, {
+                context: { user: activeStudyTask.user, sessionId: activeStudyTask.sessionId },
+                appMode: activeStudyTask.appMode,
+                criterion: activeStudyTask.criterion,
+                stateSnapshot: true
+            });
+            activeStudyTask = null;
+        }
+        clearStoredStudySession();
+        syncStudyTask('participant_changed');
+    });
+}
+
 // About modal: click EKPHRASIS to show project description and paper link
 document.getElementById('ekphrasisAboutBtn').addEventListener('click', function () {
     aboutModalOverlay.classList.add('show');
@@ -1097,10 +1395,12 @@ aboutModalOverlay.addEventListener('click', function (e) {
     if (e.target === aboutModalOverlay) aboutModalOverlay.classList.remove('show');
 });
 
-// Mode: Canvas, Visual aids, Chess, Test model, Label data
+// Mode: Canvas, Visual aids, Chess, Test model, Label data, Study Analytics
 function applyMode() {
+    const previousMode = lastAppliedModeValue;
     const mainContent = document.getElementById('mainContent');
     const testModelSection = document.getElementById('testModelSection');
+    const studyAnalysisSection = document.getElementById('studyAnalysisSection');
     const actionRow = document.getElementById('actionRow');
     const labelDataActionRow = document.getElementById('labelDataActionRow');
     const evaluateBtnEl = document.getElementById('evaluateBtn');
@@ -1108,24 +1408,47 @@ function applyMode() {
     const chessPromptEl = document.getElementById('chessPromptLine');
     const controlsEl = document.querySelector('.controls');
     const promptEl = document.querySelector('.prompt');
+    const labelDataTopRow = document.getElementById('labelDataTopRow');
     const mode = modeSelect.value;
-    
+
+    if (mode === 'study_analysis') {
+        if (mainContent) mainContent.style.display = 'none';
+        if (testModelSection) { testModelSection.style.display = 'none'; testModelSection.classList.remove('show'); }
+        if (studyAnalysisSection) { studyAnalysisSection.style.display = 'block'; studyAnalysisSection.classList.add('show'); }
+        if (contentWrapper) contentWrapper.classList.add('test-model-active');
+        if (actionRow) actionRow.style.display = 'none';
+        if (labelDataActionRow) labelDataActionRow.style.display = 'none';
+        if (labelDataTopRow) labelDataTopRow.style.display = 'none';
+        if (controlsEl) controlsEl.style.display = 'none';
+        if (promptEl) promptEl.style.display = 'none';
+        if (chessMessageEl) setChessMessage('');
+        if (previousMode != null && previousMode !== mode) {
+            logStudyEvent('mode_changed', { from: previousMode, to: mode });
+        }
+        lastAppliedModeValue = mode;
+        syncStudyTask('mode_changed');
+        refreshStudyAnalysisUsers();
+        refreshStudyAnalysis();
+        return;
+    }
+
     if (mode === 'test_model') {
         if (mainContent) mainContent.style.display = 'none';
         if (testModelSection) { testModelSection.style.display = 'block'; testModelSection.classList.add('show'); }
+        if (studyAnalysisSection) { studyAnalysisSection.style.display = 'none'; studyAnalysisSection.classList.remove('show'); }
         if (contentWrapper) contentWrapper.classList.add('test-model-active');
     } else {
         if (mainContent) mainContent.style.display = '';
         if (testModelSection) { testModelSection.style.display = 'none'; testModelSection.classList.remove('show'); }
+        if (studyAnalysisSection) { studyAnalysisSection.style.display = 'none'; studyAnalysisSection.classList.remove('show'); }
         if (contentWrapper) contentWrapper.classList.remove('test-model-active');
     }
-    
+
     if (labelDataActionRow) labelDataActionRow.style.display = mode === 'label_data' ? 'flex' : 'none';
-    const labelDataTopRow = document.getElementById('labelDataTopRow');
     if (labelDataTopRow) labelDataTopRow.style.display = mode === 'label_data' ? 'flex' : 'none';
     if (controlsEl) controlsEl.style.display = mode === 'label_data' ? 'none' : 'flex';
     if (promptEl) promptEl.style.display = mode === 'label_data' ? 'none' : 'block';
-    
+
     if (mode === 'label_data') {
         actionRow.style.display = 'none';
         const vocabInput = document.getElementById('labelDataVocabulary');
@@ -1136,6 +1459,11 @@ function applyMode() {
         }
         fetchLabelCounts();
         generateLabelDataImage();
+        if (previousMode != null && previousMode !== mode) {
+            logStudyEvent('mode_changed', { from: previousMode, to: mode });
+        }
+        lastAppliedModeValue = mode;
+        syncStudyTask('mode_changed');
         return;
     } else {
         actionRow.style.display = 'flex';
@@ -1183,10 +1511,17 @@ function applyMode() {
             if (chessPromptEl) chessPromptEl.style.display = 'none';
         }
     }
+
+    if (previousMode != null && previousMode !== mode) {
+        logStudyEvent('mode_changed', { from: previousMode, to: mode });
+    }
+    lastAppliedModeValue = mode;
+    syncStudyTask('mode_changed');
 }
 modeSelect.addEventListener('change', applyMode);
 restoreFromStorage();
 applyMode();
+lastCriterionValue = criterionSelect.value;
 
 // Label Data mode state
 let labelDataCounts = { class_0: 0, class_1: 0, total: 0 };
@@ -1231,6 +1566,7 @@ function generateLabelDataImage() {
         const randomColor = greyColors[Math.floor(Math.random() * greyColors.length)];
 
         const randomRectangle = {
+            id: 'b' + (++blockIdCounter),
             x: Math.max(0, Math.min(canvas.width - randomWidth, randomX)),
             y: Math.max(0, Math.min(canvas.height - randomHeight, randomY)),
             width: randomWidth,
@@ -1241,6 +1577,7 @@ function generateLabelDataImage() {
         randomRectangle.corners = calculateCorners(randomRectangle);
         rectangles.push(randomRectangle);
     }
+    advanceStudyState();
     renderRectangles();
 }
 
@@ -1479,12 +1816,216 @@ document.getElementById('testModelDatasetBtn').addEventListener('click', async f
     btn.textContent = 'Run dataset/test_images';
 });
 
+function setStudyAnalysisEmpty(message) {
+    const cardsEl = document.getElementById('studyAnalysisCards');
+    const barsEl = document.getElementById('studyAnalysisBarChart');
+    const timelineEl = document.getElementById('studyAnalysisTimeline');
+    if (cardsEl) cardsEl.innerHTML = '';
+    if (barsEl) barsEl.innerHTML = `<div class="study-analysis-empty">${message}</div>`;
+    if (timelineEl) timelineEl.innerHTML = `<div class="study-analysis-empty">${message}</div>`;
+}
+
+function fillStudySelect(el, values, emptyLabel, selectedValue) {
+    if (!el) return;
+    const current = selectedValue != null ? selectedValue : el.value;
+    const list = ['<option value="">' + emptyLabel + '</option>'];
+    values.forEach(value => {
+        list.push('<option value="' + value + '">' + value + '</option>');
+    });
+    el.innerHTML = list.join('');
+    if (current && values.includes(current)) el.value = current;
+}
+
+function describeStudyEvent(event) {
+    const payload = event.payload || {};
+    if (event.event_type === 'task_started' || event.event_type === 'task_completed') {
+        return (payload.reason || 'task transition') + (payload.task_started_at ? ' · started ' + payload.task_started_at : '');
+    }
+    if (event.event_type === 'block_add' && payload.block) {
+        return `${payload.block.block_id} at (${payload.block.x}, ${payload.block.y}), ${payload.block.width}×${payload.block.height}`;
+    }
+    if (event.event_type === 'block_move' && payload.from && payload.to) {
+        return `${payload.block_id || ''} from (${payload.from.x}, ${payload.from.y}) to (${payload.to.x}, ${payload.to.y})`;
+    }
+    if (event.event_type === 'undo' && payload.removed_block) {
+        return `Removed ${payload.removed_block.block_id}`;
+    }
+    if (event.event_type === 'redo' && payload.restored_block) {
+        return `Restored ${payload.restored_block.block_id}`;
+    }
+    if (event.event_type === 'clear_canvas') {
+        return `Removed ${payload.cleared_count || 0} blocks`;
+    }
+    if (event.event_type === 'generate_feedback_clicked') {
+        return `Requested ${payload.candidate_count || 0} candidates`;
+    }
+    if (event.event_type === 'feedback_returned') {
+        const less = payload.less_selected ? `less #${payload.less_selected.index} (${payload.less_selected.confidence_pct}%)` : 'less —';
+        const more = payload.more_selected ? `more #${payload.more_selected.index} (${payload.more_selected.confidence_pct}%)` : 'more —';
+        return `Attempts ${payload.attempt_count || 1}; ${less}; ${more}${payload.fallback_used ? '; fallback' : ''}`;
+    }
+    if (event.event_type === 'chess_position_evaluated') {
+        return `${payload.class_label || 'Unknown'} ${payload.score_pct || '0'}%${payload.reached_goal ? '; reached goal' : ''}`;
+    }
+    if (event.event_type === 'chess_computer_move') {
+        return `${payload.strategy || 'random'}; ${payload.class_label || 'Unknown'} ${payload.score_pct || '0'}%`;
+    }
+    if (event.event_type === 'feedback_error') {
+        return payload.message || 'Error';
+    }
+    const json = JSON.stringify(payload);
+    return json.length > 180 ? json.slice(0, 180) + '…' : json;
+}
+
+function computeAverageFeedbackLatency(events) {
+    const editTypes = new Set(['block_add', 'block_move', 'undo', 'redo', 'clear_canvas']);
+    const latencies = [];
+    for (let i = 0; i < events.length; i++) {
+        const event = events[i];
+        if (event.event_type !== 'feedback_returned') continue;
+        const base = Date.parse(event.timestamp || '');
+        if (Number.isNaN(base)) continue;
+        for (let j = i + 1; j < events.length; j++) {
+            const next = events[j];
+            if ((next.session_id || '') !== (event.session_id || '')) continue;
+            if (!editTypes.has(next.event_type)) continue;
+            const nextTs = Date.parse(next.timestamp || '');
+            if (!Number.isNaN(nextTs) && nextTs >= base) {
+                latencies.push((nextTs - base) / 1000);
+            }
+            break;
+        }
+    }
+    if (!latencies.length) return '—';
+    const avg = latencies.reduce((sum, value) => sum + value, 0) / latencies.length;
+    return avg.toFixed(1) + 's';
+}
+
+function renderStudyAnalysisCards(events) {
+    const el = document.getElementById('studyAnalysisCards');
+    if (!el) return;
+    const sessions = new Set(events.map(e => e.session_id).filter(Boolean));
+    const feedbackCount = events.filter(e => e.event_type === 'feedback_returned').length;
+    const cards = [
+        { label: 'Events', value: String(events.length) },
+        { label: 'Sessions', value: String(sessions.size) },
+        { label: 'Feedback Returned', value: String(feedbackCount) },
+        { label: 'Avg. Revision Latency', value: computeAverageFeedbackLatency(events) }
+    ];
+    el.innerHTML = cards.map(card => `<div class="study-analysis-card"><div class="label">${card.label}</div><div class="value">${card.value}</div></div>`).join('');
+}
+
+function renderStudyAnalysisBars(events) {
+    const el = document.getElementById('studyAnalysisBarChart');
+    if (!el) return;
+    if (!events.length) {
+        el.innerHTML = '<div class="study-analysis-empty">No events for the current filter.</div>';
+        return;
+    }
+    const counts = {};
+    events.forEach(event => { counts[event.event_type] = (counts[event.event_type] || 0) + 1; });
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const max = entries[0] ? entries[0][1] : 1;
+    el.innerHTML = `<div class="study-analysis-bars">${entries.map(([name, count]) => `<div class="study-analysis-bar-row"><div>${name}</div><div class="study-analysis-bar-track"><div class="study-analysis-bar-fill" style="width:${Math.max(6, (count / max) * 100)}%"></div></div><div>${count}</div></div>`).join('')}</div>`;
+}
+
+function renderStudyAnalysisTimeline(events) {
+    const el = document.getElementById('studyAnalysisTimeline');
+    if (!el) return;
+    if (!events.length) {
+        el.innerHTML = '<div class="study-analysis-empty">No events for the current filter.</div>';
+        return;
+    }
+    const items = events.slice(-200).reverse();
+    el.innerHTML = `<div class="study-analysis-timeline">${items.map(event => `<div class="study-analysis-event"><div class="study-analysis-event-meta">${event.timestamp || ''} · ${(event.session_id || '').slice(0, 18)} · ${event.app_mode || ''} · ${event.criterion || ''}</div><div class="study-analysis-event-type">${event.event_type}</div><div class="study-analysis-event-body">${describeStudyEvent(event)}</div></div>`).join('')}</div>`;
+}
+
+function renderStudyAnalysis() {
+    const user = (document.getElementById('studyAnalysisUserSelect') || {}).value || '';
+    const sessionId = (document.getElementById('studyAnalysisSessionSelect') || {}).value || '';
+    const appMode = (document.getElementById('studyAnalysisModeFilter') || {}).value || '';
+    const criterion = (document.getElementById('studyAnalysisCriterionFilter') || {}).value || '';
+    const eventType = (document.getElementById('studyAnalysisEventTypeFilter') || {}).value || '';
+    let events = studyAnalysisAllEvents.slice();
+    if (sessionId) events = events.filter(event => (event.session_id || '') === sessionId);
+    if (appMode) events = events.filter(event => (event.app_mode || '') === appMode);
+    if (criterion) events = events.filter(event => (event.criterion || '') === criterion);
+    if (eventType) events = events.filter(event => (event.event_type || '') === eventType);
+    const statusEl = document.getElementById('studyAnalysisStatus');
+    if (statusEl) statusEl.textContent = user ? `${events.length} events shown for ${user}.` : 'Select a user to load study events.';
+    if (!user) {
+        setStudyAnalysisEmpty('Select a user to load study events.');
+        return;
+    }
+    renderStudyAnalysisCards(events);
+    renderStudyAnalysisBars(events);
+    renderStudyAnalysisTimeline(events);
+}
+
+async function refreshStudyAnalysisUsers() {
+    const userEl = document.getElementById('studyAnalysisUserSelect');
+    if (!userEl) return;
+    try {
+        const res = await fetch(API_BASE + '/study_users');
+        const users = await res.json();
+        if (!Array.isArray(users)) throw new Error('Invalid users response');
+        const preferred = userEl.value || getStudyUsername();
+        fillStudySelect(userEl, users, 'Select user', preferred);
+        if (!userEl.value && users.length) userEl.value = preferred && users.includes(preferred) ? preferred : users[0];
+    } catch (e) {
+        const statusEl = document.getElementById('studyAnalysisStatus');
+        if (statusEl) statusEl.textContent = 'Could not load study users.';
+        setStudyAnalysisEmpty('Could not load study users.');
+    }
+}
+
+async function refreshStudyAnalysis() {
+    const userEl = document.getElementById('studyAnalysisUserSelect');
+    const statusEl = document.getElementById('studyAnalysisStatus');
+    if (!userEl) return;
+    const username = userEl.value || getStudyUsername();
+    if (!username) {
+        studyAnalysisAllEvents = [];
+        if (statusEl) statusEl.textContent = 'Select a user to load study events.';
+        setStudyAnalysisEmpty('Select a user to load study events.');
+        return;
+    }
+    if (statusEl) statusEl.textContent = 'Loading study events…';
+    try {
+        const res = await fetch(API_BASE + '/study_events?' + new URLSearchParams({ username: username }));
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Could not load events');
+        studyAnalysisAllEvents = Array.isArray(data.events) ? data.events : [];
+        fillStudySelect(document.getElementById('studyAnalysisSessionSelect'), data.available_sessions || [], 'All sessions');
+        fillStudySelect(document.getElementById('studyAnalysisModeFilter'), data.available_modes || [], 'All modes');
+        fillStudySelect(document.getElementById('studyAnalysisCriterionFilter'), data.available_criteria || [], 'All vocabularies');
+        fillStudySelect(document.getElementById('studyAnalysisEventTypeFilter'), data.available_event_types || [], 'All events');
+        renderStudyAnalysis();
+    } catch (e) {
+        if (statusEl) statusEl.textContent = e.message || 'Could not load study events.';
+        studyAnalysisAllEvents = [];
+        setStudyAnalysisEmpty(e.message || 'Could not load study events.');
+    }
+}
+
+['studyAnalysisSessionSelect', 'studyAnalysisModeFilter', 'studyAnalysisCriterionFilter', 'studyAnalysisEventTypeFilter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', renderStudyAnalysis);
+});
+const studyAnalysisUserSelect = document.getElementById('studyAnalysisUserSelect');
+if (studyAnalysisUserSelect) studyAnalysisUserSelect.addEventListener('change', refreshStudyAnalysis);
+const studyAnalysisRefreshBtn = document.getElementById('studyAnalysisRefreshBtn');
+if (studyAnalysisRefreshBtn) studyAnalysisRefreshBtn.addEventListener('click', function () {
+    refreshStudyAnalysisUsers().then(refreshStudyAnalysis);
+});
+
 // Fit content in viewport without scroll (scale down if needed)
 function fitInViewport() {
     if (!containerEl || !contentWrapper) return;
-    const available = containerEl.clientHeight;
     contentWrapper.style.transform = '';
     contentWrapper.style.transformOrigin = '';
+    if (modeSelect.value === 'test_model' || modeSelect.value === 'study_analysis') return;
+    const available = containerEl.clientHeight;
     const need = contentWrapper.scrollHeight;
     if (need > available && available > 0) {
         const scale = available / need;
@@ -1518,6 +2059,14 @@ function populateCriterionDropdown() {
         });
 }
 criterionSelect.addEventListener('change', updateCriterionLabels);
+criterionSelect.addEventListener('change', function () {
+    if (lastCriterionValue != null && lastCriterionValue !== criterionSelect.value) {
+        logStudyEvent('criterion_changed', { from: lastCriterionValue, to: criterionSelect.value });
+    }
+    lastCriterionValue = criterionSelect.value;
+    syncStudyTask('criterion_changed');
+    if (modeSelect.value === 'study_analysis') refreshStudyAnalysis();
+});
 populateCriterionDropdown();
 
 // Check backend on load; update status button (text + dot). Details in modal when button is clicked.
@@ -1608,6 +2157,7 @@ function generateRandomBlock() {
     const randomWidth = minSize + Math.random() * (maxSize - minSize);
     const randomHeight = minSize + Math.random() * (maxSize - minSize);
     const block = {
+        id: 'b' + (++blockIdCounter),
         x: Math.max(0, Math.min(canvas.width - randomWidth, randomX)),
         y: Math.max(0, Math.min(canvas.height - randomHeight, randomY)),
         width: randomWidth,
@@ -1644,28 +2194,37 @@ async function scheduleChessAfterUserMove() {
     setChessMessage('Checking...');
     try {
         const score = await chessRunModel();
-        if (score >= getChessTargetScore()) {
-            showChessGoalReached(score);
-            return;
-        }
+        const reachedGoal = score >= getChessTargetScore();
+        const cls = score >= 0.5 ? 'More' : 'Less';
+        logStudyEvent('chess_position_evaluated', {
+            score_pct: (score * 100).toFixed(1),
+            class_label: cls,
+            reached_goal: reachedGoal
+        }, { stateSnapshot: true });
         if (isStudyMode()) {
             const user = getStudyUsername();
             if (user) {
                 const n = ++studyCompositionCountC;
                 studyChessCurrentN = n;
                 const ts = getStudyTimestamp();
-                const cls = score >= 0.5 ? 'more' : 'less';
                 const scoreStr = (score * 100).toFixed(1);
                 const imgB64 = generateImageAsBase64(rectangles);
-                saveStudyImage(user, `${user}-chess-composition-${n}-${ts}-${cls}-${scoreStr}.png`, imgB64);
+                saveStudyImage(user, `${user}-chess-composition-${n}-${ts}-${cls.toLowerCase()}-${scoreStr}.png`, imgB64);
             }
         }
+        if (reachedGoal) {
+            showChessGoalReached(score);
+            return;
+        }
         if (showModelScores) {
-            const cls = score >= 0.5 ? 'More' : 'Less';
             setChessMessage('Score: ' + (score * 100).toFixed(1) + '% (' + cls + ')');
         } else setChessMessage('');
         await computerTurn();
     } catch (e) {
+        logStudyEvent('feedback_error', {
+            stage: 'chess_user_evaluation',
+            message: e.message || 'Could not reach ML server.'
+        }, { stateSnapshot: true });
         setChessMessage('Error: ' + (e.message || 'Could not reach ML server.'));
     }
 }
@@ -1674,10 +2233,13 @@ async function computerTurn() {
     chessComputerThinking = true;
     setChessMessage('Computer is thinking...');
     const strategy = (document.getElementById('chessStrategySelect') || {}).value || 'random';
+    let chosen = null;
+    let chosenIndex = 0;
+    let attemptCount = 1;
     try {
         if (strategy === 'random') {
-            const block = generateRandomBlock();
-            rectangles.push(block);
+            chosen = generateRandomBlock();
+            rectangles.push(chosen);
             clearRedoStack();
             renderRectanglesWithFadeIn(rectangles.length - 1, 500);
         } else {
@@ -1686,6 +2248,7 @@ async function computerTurn() {
             let candidateBlocks = [];
             const maxAttempts = 10;
             for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                attemptCount = attempt + 1;
                 candidateBlocks = [];
                 for (let i = 0; i < 20; i++) candidateBlocks.push(generateRandomBlock());
                 const images = candidateBlocks.map(block => generateImageAsBase64([...rectangles, block]));
@@ -1697,34 +2260,48 @@ async function computerTurn() {
                 if (res.error) throw new Error(res.error);
                 if (res.best_class_0 && res.best_class_1) break;
             }
-            const idx = strategy === 'help'
+            chosenIndex = strategy === 'help'
                 ? (res.best_class_1 ? res.best_class_1.index : (res.best ? res.best.index : 0))
                 : (res.best_class_0 ? res.best_class_0.index : (res.worst ? res.worst.index : 0));
-            const chosen = candidateBlocks[idx];
+            chosen = candidateBlocks[chosenIndex];
             rectangles.push(chosen);
             clearRedoStack();
             renderRectanglesWithFadeIn(rectangles.length - 1, 500);
         }
+        advanceStudyState();
         const score = await chessRunModel();
-        if (score >= getChessTargetScore()) {
+        const reachedGoal = score >= getChessTargetScore();
+        const cls = score >= 0.5 ? 'More' : 'Less';
+        if (reachedGoal) {
             showChessGoalReached(score);
         } else if (showModelScores) {
-            const cls = score >= 0.5 ? 'More' : 'Less';
             setChessMessage('Score: ' + (score * 100).toFixed(1) + '% (' + cls + ')');
         } else {
             setChessMessage('');
         }
+        logStudyEvent('chess_computer_move', {
+            strategy: strategy,
+            attempt_count: attemptCount,
+            selected_index: chosenIndex,
+            block: snapshotRect(chosen),
+            score_pct: (score * 100).toFixed(1),
+            class_label: cls,
+            reached_goal: reachedGoal
+        }, { stateSnapshot: true });
         if (isStudyMode()) {
             const user = getStudyUsername();
             if (user && studyChessCurrentN > 0) {
                 const ts = getStudyTimestamp();
-                const cls = score >= 0.5 ? 'more' : 'less';
                 const scoreStr = (score * 100).toFixed(1);
                 const imgB64 = generateImageAsBase64(rectangles);
-                saveStudyImage(user, `${user}-chess-result-${studyChessCurrentN}-${ts}-${cls}-${scoreStr}.png`, imgB64);
+                saveStudyImage(user, `${user}-chess-result-${studyChessCurrentN}-${ts}-${cls.toLowerCase()}-${scoreStr}.png`, imgB64);
             }
         }
     } catch (e) {
+        logStudyEvent('feedback_error', {
+            stage: 'chess_computer_move',
+            message: e.message || 'Could not reach ML server.'
+        }, { stateSnapshot: true });
         setChessMessage('Error: ' + (e.message || 'Could not reach ML server.'));
     } finally {
         chessComputerThinking = false;
@@ -1846,6 +2423,7 @@ function addRandomRectangle() {
     const randomColor = greyColors[Math.floor(Math.random() * greyColors.length)];
 
     const randomRectangle = {
+        id: 'b' + (++blockIdCounter),
         x: randomX,
         y: randomY,
         width: randomWidth,
@@ -1856,7 +2434,12 @@ function addRandomRectangle() {
     randomRectangle.corners = calculateCorners(randomRectangle);
     rectangles.push(randomRectangle);
     clearRedoStack();
+    advanceStudyState();
     renderRectangles();
+    logStudyEvent('block_add', {
+        source: 'shortcut_random',
+        block: snapshotRect(randomRectangle)
+    }, { stateSnapshot: true });
     if (modeSelect.value === 'chess') setTimeout(scheduleChessAfterUserMove, 0);
 }
 
@@ -1893,9 +2476,11 @@ function startDrawingOrDragging(e) {
         isDragging = true;
         dragOffsetX = startX - currentRectangle.x;
         dragOffsetY = startY - currentRectangle.y;
+        pendingMoveSnapshot = snapshotRect(currentRectangle);
     } else {
         isDrawing = true;
         currentRectangle = {
+            id: 'b' + (++blockIdCounter),
             x: startX,
             y: startY,
             width: 0,
@@ -1940,6 +2525,7 @@ function endDrawingOrDragging() {
         if (isDragging) clearRedoStack();
     }
     const wasDrawing = isDrawing;
+    const wasDragging = isDragging;
     const hadNewBlock = wasDrawing && currentRectangle && (currentRectangle.width !== 0 || currentRectangle.height !== 0);
     if (wasDrawing && !hadNewBlock && currentRectangle) {
         rectangles.pop();
@@ -1947,6 +2533,29 @@ function endDrawingOrDragging() {
     }
     isDrawing = false;
     isDragging = false;
+
+    if (hadNewBlock && currentRectangle) {
+        advanceStudyState();
+        logStudyEvent('block_add', {
+            source: 'draw',
+            block: snapshotRect(currentRectangle)
+        }, { stateSnapshot: true });
+    } else if (wasDragging && currentRectangle && pendingMoveSnapshot) {
+        const nextSnapshot = snapshotRect(currentRectangle);
+        const changed = pendingMoveSnapshot.x !== nextSnapshot.x ||
+            pendingMoveSnapshot.y !== nextSnapshot.y ||
+            pendingMoveSnapshot.width !== nextSnapshot.width ||
+            pendingMoveSnapshot.height !== nextSnapshot.height;
+        if (changed) {
+            advanceStudyState();
+            logStudyEvent('block_move', {
+                block_id: currentRectangle.id,
+                from: pendingMoveSnapshot,
+                to: nextSnapshot
+            }, { stateSnapshot: true });
+        }
+    }
+    pendingMoveSnapshot = null;
     if (hadNewBlock && modeSelect.value === 'chess') {
         setTimeout(scheduleChessAfterUserMove, 0);
     }
@@ -1986,8 +2595,10 @@ function renderRectanglesWithFadeIn(rectIndex, durationMs) {
 
 // Clear canvas
 function clearCanvas() {
+    const clearedBlocks = snapshotRectangles(rectangles);
     rectangles = [];
     clearRedoStack();
+    advanceStudyState();
     renderRectangles();
     if (modeSelect.value === 'chess') setChessMessage('');
     // Clear left/right reference images
@@ -2003,6 +2614,10 @@ function clearCanvas() {
     rightImg.style.display = 'none';
     window._lastLessDataUrl = null;
     window._lastMoreDataUrl = null;
+    logStudyEvent('clear_canvas', {
+        cleared_count: clearedBlocks.length,
+        cleared_blocks: clearedBlocks
+    }, { stateSnapshot: true, rectangles: [] });
 }
 
 // Generate visual aids (run model, show less/more examples)
@@ -2017,13 +2632,19 @@ async function evaluateWithAI() {
     if (chessMessageEl) setChessMessage('');
     scoreDisplay.style.display = 'none';
     evaluateBtn.disabled = true;
+    logStudyEvent('generate_feedback_clicked', {
+        candidate_count: 20,
+        criterion: criterionSelect.value
+    }, { stateSnapshot: true });
 
     try {
         const criterion = criterionSelect.value;
         let result;
         let allVariations = [rectangles];
         const maxAttempts = 10;
+        let attemptCount = 0;
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            attemptCount = attempt + 1;
             if (attempt >= 1) {
                 document.getElementById('evaluateBtnText').textContent = 'Attempt ' + (attempt + 1);
             }
@@ -2049,6 +2670,7 @@ async function evaluateWithAI() {
         }
 
         let lessIndex, moreIndex, lessPct, morePct, lessClass, moreClass;
+        let fallbackUsed = false;
         if (result.best_class_0 && result.best_class_1) {
             lessIndex = result.best_class_0.index;
             moreIndex = result.best_class_1.index;
@@ -2057,6 +2679,7 @@ async function evaluateWithAI() {
             lessClass = 'Less';
             moreClass = 'More';
         } else {
+            fallbackUsed = true;
             const all = result.all_results || [];
             const lowest = all.length ? all.reduce((min, r) => r.confidence < min.confidence ? r : min) : null;
             if (result.best_class_0) {
@@ -2111,6 +2734,19 @@ async function evaluateWithAI() {
         document.getElementById('rightSlot').classList.add('has-result');
         updateSlotLabelScores();
 
+        logStudyEvent('feedback_returned', {
+            attempt_count: attemptCount,
+            candidate_count: 20,
+            returned_count: (result.all_results || []).length,
+            fallback_used: fallbackUsed,
+            user_prediction: userResult ? {
+                class_label: userResult.class === 'class_1' ? 'More' : 'Less',
+                confidence_pct: (userResult.confidence * 100).toFixed(1)
+            } : null,
+            less_selected: { index: lessIndex, confidence_pct: (lessPct * 100).toFixed(1), class_label: lessClass },
+            more_selected: { index: moreIndex, confidence_pct: (morePct * 100).toFixed(1), class_label: moreClass }
+        }, { stateSnapshot: true });
+
         if (isStudyMode()) {
             const user = getStudyUsername();
             if (user) {
@@ -2119,13 +2755,13 @@ async function evaluateWithAI() {
                 const userCls = userResult && userResult.class === 'class_1' ? 'more' : 'less';
                 const userScore = userResult ? (userResult.confidence * 100).toFixed(1) : '0';
                 const lessScore = (lessPct * 100).toFixed(1);
-                const moreScore = (morePct * 100).toFixed(1);
+                const moreScorePct = (morePct * 100).toFixed(1);
                 const compB64 = generateImageAsBase64(allVariations[0]);
                 const lessB64 = generateImageAsBase64(allVariations[lessIndex]);
                 const moreB64 = generateImageAsBase64(allVariations[moreIndex]);
                 saveStudyImage(user, `${user}-v-composition-${n}-${ts}-${userCls}-${userScore}.png`, compB64);
                 saveStudyImage(user, `${user}-v-visualaids-less-${n}-${ts}-${lessScore}.png`, lessB64);
-                saveStudyImage(user, `${user}-v-visualaids-more-${n}-${ts}-${moreScore}.png`, moreB64);
+                saveStudyImage(user, `${user}-v-visualaids-more-${n}-${ts}-${moreScorePct}.png`, moreB64);
             }
         }
 
@@ -2134,6 +2770,10 @@ async function evaluateWithAI() {
         const msg = error.name === 'AbortError'
             ? 'Request timed out (60s). Is the ML server running? Run: cd ml && python3 start_server.py'
             : ('Error: ' + (error.message || 'Could not reach ML server. Run: cd ml && python3 start_server.py'));
+        logStudyEvent('feedback_error', {
+            stage: 'visual_aids',
+            message: error.message || 'Could not reach ML server.'
+        }, { stateSnapshot: true });
         showStatusToast(msg);
     } finally {
         document.getElementById('evaluateBtnSpinner').classList.remove('show');
@@ -2152,16 +2792,26 @@ function clearRedoStack() {
 // Undo last action
 function undoLastAction() {
     if (rectangles.length > 0) {
-        redoStack.push(rectangles.pop());
+        const removed = rectangles.pop();
+        redoStack.push(removed);
+        advanceStudyState();
         renderRectangles();
+        logStudyEvent('undo', {
+            removed_block: snapshotRect(removed)
+        }, { stateSnapshot: true });
     }
 }
 
 // Redo last undone action
 function redoLastAction() {
     if (redoStack.length > 0) {
-        rectangles.push(redoStack.pop());
+        const restored = redoStack.pop();
+        rectangles.push(restored);
+        advanceStudyState();
         renderRectangles();
+        logStudyEvent('redo', {
+            restored_block: snapshotRect(restored)
+        }, { stateSnapshot: true });
     }
 }
 
