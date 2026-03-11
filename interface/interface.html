@@ -1087,7 +1087,6 @@
                 </select>
             </div>
             <div class="topbar-right" style="position: relative;">
-                <span id="studyDateTime" class="study-datetime" aria-live="polite"></span>
                 <select id="studyModeSelect" class="study-mode-select" title="Demo: no logging. Study: record to dataset/study/">
                     <option value="demo" selected>Demo</option>
                     <option value="study">Study</option>
@@ -1100,21 +1099,50 @@
             </div>
         </header>
     </div>
-
     <script>
-let isDrawing = false;
-let isDragging = false;
-let isResizing = false;
-let startX, startY;
-let rectangles = [];
-let redoStack = [];
-let undoStack = [];
-let currentRectangle = null;
-let dragOffsetX, dragOffsetY;
-let currentColor = '#D9D9D9'; // Default color
-let selectedBlockId = null;
-let activeResizeHandle = null;
-let pendingResizeSnapshot = null;
+window.EKPHRASIS = window.EKPHRASIS || {};
+const canvasEditorState = window.EKPHRASIS.canvasEditorState = {
+    isDrawing: false,
+    isDragging: false,
+    isResizing: false,
+    startX: undefined,
+    startY: undefined,
+    rectangles: [],
+    redoStack: [],
+    undoStack: [],
+    currentRectangle: null,
+    dragOffsetX: undefined,
+    dragOffsetY: undefined,
+    currentColor: '#D9D9D9',
+    selectedBlockId: null,
+    activeResizeHandle: null,
+    pendingResizeSnapshot: null
+};
+
+[
+    'isDrawing',
+    'isDragging',
+    'isResizing',
+    'startX',
+    'startY',
+    'rectangles',
+    'redoStack',
+    'undoStack',
+    'currentRectangle',
+    'dragOffsetX',
+    'dragOffsetY',
+    'currentColor',
+    'selectedBlockId',
+    'activeResizeHandle',
+    'pendingResizeSnapshot'
+].forEach(function (key) {
+    Object.defineProperty(window, key, {
+        configurable: true,
+        get: function () { return canvasEditorState[key]; },
+        set: function (value) { canvasEditorState[key] = value; }
+    });
+});
+
 const MIN_BLOCK_SIZE = 12;
 const RESIZE_HANDLE_SIZE = 5;
 
@@ -1150,7 +1178,6 @@ const containerEl = document.querySelector('.container');
 const chessMessageEl = document.getElementById('chessMessageArea');
 const aboutModalOverlay = document.getElementById('aboutModalOverlay');
 const aboutModalClose = document.getElementById('aboutModalClose');
-const studyDateTimeEl = document.getElementById('studyDateTime');
 
 // Show model scores in slot labels (Less X n%, More X n%). Default off; toggle in ML status modal.
 let showModelScores = false;
@@ -1223,34 +1250,6 @@ if (chessReachedThresholdPctEl) {
 }
 const studyModeSelect = document.getElementById('studyModeSelect');
 const studyUserWrap = document.getElementById('studyUserWrap');
-let studyDateTimeTimer = null;
-
-function formatStudyDateTime(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    return `${y}-${m}-${d} ${hh}:${mm}`;
-}
-
-function updateStudyDateTime() {
-    if (!studyDateTimeEl) return;
-    const isStudy = studyModeSelect && studyModeSelect.value === 'study';
-    if (!isStudy) {
-        studyDateTimeEl.textContent = '';
-        studyDateTimeEl.classList.remove('show');
-        return;
-    }
-    studyDateTimeEl.textContent = formatStudyDateTime(new Date());
-    studyDateTimeEl.classList.add('show');
-}
-
-function startStudyDateTimeTimer() {
-    if (studyDateTimeTimer) clearInterval(studyDateTimeTimer);
-    updateStudyDateTime();
-    studyDateTimeTimer = setInterval(updateStudyDateTime, 30000);
-}
 
 function updateStudyUI() {
     const isStudy = studyModeSelect && studyModeSelect.value === 'study';
@@ -1266,13 +1265,10 @@ function updateStudyUI() {
         else explanationInput.placeholder = 'Briefly explain your composition strategy...';
         if (!showExplanation) explanationInput.value = '';
     }
-    updateStudyDateTime();
 }
 if (studyModeSelect) {
     studyModeSelect.addEventListener('change', updateStudyUI);
 }
-updateStudyUI();
-startStudyDateTimeTimer();
 
 const STORAGE_STUDY_MODE = 'ekphrasis_study_mode';
 const STORAGE_APP_MODE = 'ekphrasis_app_mode';
@@ -1818,7 +1814,6 @@ aboutModalOverlay.addEventListener('click', function (e) {
     if (e.target === aboutModalOverlay) aboutModalOverlay.classList.remove('show');
 });
 
-// Mode: Canvas, Visual aids, Chess, Test model, Label data, Study Analytics
 function applyMode() {
     const previousMode = lastAppliedModeValue;
     const mainContent = document.getElementById('mainContent');
@@ -1943,12 +1938,7 @@ function applyMode() {
     syncStudyTask('mode_changed');
 }
 modeSelect.addEventListener('change', applyMode);
-restoreFromStorage();
-applyMode();
-lastCriterionValue = criterionSelect.value;
-renderRectangles();
 
-// Label Data mode state
 let labelDataCounts = { class_0: 0, class_1: 0, total: 0 };
 let labelCountsDebounce = null;
 
@@ -2642,6 +2632,7 @@ const studyAnalysisExportCsvBtn = document.getElementById('studyAnalysisExportCs
 if (studyAnalysisExportCsvBtn) studyAnalysisExportCsvBtn.addEventListener('click', exportStudyAnalysisCsv);
 
 // Fit content in viewport without scroll (scale down if needed)
+
 function fitInViewport() {
     if (!containerEl || !contentWrapper) return;
     contentWrapper.style.transform = '';
@@ -3669,6 +3660,11 @@ function exportImage() {
     generateAndSaveImage(rectangles, 'composition.png', 300);
 }
 
+updateStudyUI();
+restoreFromStorage();
+applyMode();
+lastCriterionValue = criterionSelect.value;
+renderRectangles();
     </script>
 </body>
 </html>
