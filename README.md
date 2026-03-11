@@ -20,12 +20,12 @@ This repository accompanies the paper **“Generating Visual Aids to Help Studen
 
 ## Features
 
-- **Canvas** – Draw and arrange grey rectangles; undo/redo, export.
+- **Canvas** – Draw grey rectangles, click to select, drag to move, drag corners to resize, recolor from the palette, undo/redo, export.
 - **Visual Aids** – Generate “less” and “more” examples for the selected criterion. Left = highest-confidence **class_0** (Less), right = highest-confidence **class_1** (More). If only one class appears after several tries, the other slot shows the lowest-confidence variant. Feedback text and reference images are shown only in this mode.
 - **Chess** – Turn-based: you add a block, then the computer adds one. Computer strategies: **Help** (picks highest-confidence class_1), **Oppose** (highest-confidence class_0), **Random**. “Reached” threshold is configurable in the ML status modal (default 80%).
 - **Test Model** – Upload images or use `dataset/test_images`; run the current criterion and see image + score (e.g. “45.2% More”) per result.
 - **Label Data** – Label random compositions as “does not fit” (0) or “fits” (1). Saves to `dataset/new/{vocabulary}_{date}_{labeler}/class_0|class_1`. Optional **Crop Dataset** to balance classes; keyboard ← / → for 0 / 1; labeler name cached in browser.
-- **Demo vs Study** – Bottom bar: **Demo** (no logging) or **Study**. In Study mode, a **User** field appears; the app records (1) saved images under `dataset/study/{username}/` and (2) structured interaction events to `dataset/study/{username}/events.jsonl` (JSONL). Useful for HCI experiments.
+- **Demo vs Study** – Bottom bar: **Demo** (no logging) or **Study**. In Study mode, a **User** field appears; the app records (1) saved images under `dataset/study/{username}/` and (2) structured interaction events such as `block_add`, `block_move`, `block_resize`, `block_recolor`, feedback, and mode/task changes to `dataset/study/{username}/events.jsonl` (JSONL). Useful for HCI experiments.
 - **Analytics** – A dedicated mode to inspect Study logs: filter by user/session/mode/vocabulary/event type, view summaries and distributions, click an event to see a right-side detail panel (composition redrawn from `state_snapshot` plus saved feedback images when available), and export the filtered events as JSON/CSV.
 - **Persistent state** – Mode, Demo/Study choice, and username are stored in the browser (localStorage). Refresh keeps the same state. **Reset mode & username** in the ML status modal clears this cache.
 
@@ -78,6 +78,7 @@ python start_ekphrasis.py
 - **Mode**: Canvas, Visual Aids, Chess, Test Model, Label Data, Analytics.
 - **Demo / Study** (bottom bar, left of ML): Demo = no logging; Study = record to `dataset/study/{username}/`. In Study, enter **User** (username); each Generate (Visual Aids) or move (Chess) saves composition and system feedback with timestamped filenames.
 - **ML status** (bottom bar): Button always shows “ML”; dot color indicates state (green = connected, yellow = disconnected, gray = checking). Click to open modal (server message, model info, variation range, Chess reached threshold, Show model scores, **Reset mode & username**).
+- **Canvas editing**: drag on empty space to create a block; click a block to select it; drag the block to move it; drag a corner handle to resize; click a grey swatch to recolor the selected block.
 - In **Visual Aids**: draw, click “Generate visual aids”; left/right show Less and More examples; feedback in the message area when applicable.
 - In **Label Data**: set Vocabulary and Labeler (labeler is cached); use buttons or ← / → to label; optionally “Crop Dataset” to balance classes.
 
@@ -88,9 +89,10 @@ python start_ekphrasis.py
 ### Frontend (`interface/interface.html`)
 
 - Single HTML file: canvas, mode-specific UI, modals (settings, about, backend status).
+- **Canvas editor:** Supports block creation, selection, move, resize, recolor, export, and action-level undo/redo.
 - **Visual Aids:** Builds user canvas + 20 variations, calls `POST /predict_multiple`; retries up to 10 times until both class_0 and class_1 appear (or uses lowest-confidence variant for the missing slot). Displays Less = best_class_0, More = best_class_1. In Study mode with username, saves composition + visualaids-less/more images via `POST /save_study`.
 - **Chess:** After each user block, calls `/predict` for current composition; if below “reached” threshold (default 80%, set in ML modal), computer adds a block via `/predict_multiple` on 20 candidates; Help uses best_class_1, Oppose uses best_class_0. In Study mode, saves composition and result images to `dataset/study/{username}/`.
-- **Study event logging (JSONL):** In Study mode, user and system actions are appended to `dataset/study/{username}/events.jsonl` via `POST /log_study_event`. Events include timestamps, `session_id`, `app_mode`, `criterion`, `event_type`, `state_id`, and a `payload` (e.g., `state_snapshot`, `block_id`, and saved image filenames when applicable).
+- **Study event logging (JSONL):** In Study mode, user and system actions are appended to `dataset/study/{username}/events.jsonl` via `POST /log_study_event`. Events include timestamps, `session_id`, `app_mode`, `criterion`, `event_type`, `state_id`, and a `payload` (e.g., `state_snapshot`, `block_id`, block geometry/color changes, and saved image filenames when applicable).
 - **Analytics mode:** Fetches available study users and events from the backend and provides filtering, event timeline + detail view, and export (JSON/CSV) of the currently filtered events.
 - **Test Model:** Choose file or “Run dataset/test_images”; sends images to `/predict_multiple` and shows each image with score and class (More/Less).
 - **Label Data:** Sends vocabulary, labeler, label (class_0/class_1), image to `POST /save_label`; counts from `GET /label_counts`; balance via `POST /balance_labels`.
