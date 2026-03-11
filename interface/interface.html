@@ -267,12 +267,21 @@
             height: 30px;
             border-radius: 50%;
             cursor: pointer;
-            border: 2px solid transparent;
+            border: 1px solid transparent;
             box-sizing: border-box;
+            position: relative;
         }
-        .color-option.selected {
-            border-color: #111;
-            box-shadow: 0 0 0 2px #fff inset;
+        .color-option.selected::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 8px;
+            height: 8px;
+            margin-left: -4px;
+            margin-top: -4px;
+            border-radius: 50%;
+            background: #fff;
         }
         .icon-btn {
             width: 36px;
@@ -1099,7 +1108,7 @@ let selectedBlockId = null;
 let activeResizeHandle = null;
 let pendingResizeSnapshot = null;
 const MIN_BLOCK_SIZE = 12;
-const RESIZE_HANDLE_SIZE = 10;
+const RESIZE_HANDLE_SIZE = 5;
 
 // Same-origin when served from backend (http://localhost:5001/); else explicit URL for file://
 const API_BASE = (window.location.hostname === 'localhost' && window.location.port === '5001') ? '' : 'http://localhost:5001';
@@ -1517,7 +1526,7 @@ function applyHistoryEntry(entry, direction) {
     if (entry.type === 'block_add' && entry.block) {
         if (direction === 'undo') removeRectangleById(entry.block.block_id);
         else applySnapshotToRectangle(entry.block);
-        setSelectedBlock(direction === 'undo' ? null : entry.block.block_id);
+        setSelectedBlock(null);
         return;
     }
     if (entry.type === 'clear_canvas') {
@@ -2814,7 +2823,6 @@ async function computerTurn() {
         if (strategy === 'random') {
             chosen = generateRandomBlock();
             rectangles.push(chosen);
-            setSelectedBlock(chosen.id);
             pushHistoryEntry({
                 type: 'block_add',
                 block: snapshotRect(chosen)
@@ -2843,7 +2851,6 @@ async function computerTurn() {
                 : (res.best_class_0 ? res.best_class_0.index : (res.worst ? res.worst.index : 0));
             chosen = candidateBlocks[chosenIndex];
             rectangles.push(chosen);
-            setSelectedBlock(chosen.id);
             pushHistoryEntry({
                 type: 'block_add',
                 block: snapshotRect(chosen)
@@ -3065,7 +3072,6 @@ function addRandomRectangle() {
     };
     randomRectangle.corners = calculateCorners(randomRectangle);
     rectangles.push(randomRectangle);
-    setSelectedBlock(randomRectangle.id);
     pushHistoryEntry({
         type: 'block_add',
         block: snapshotRect(randomRectangle)
@@ -3228,7 +3234,7 @@ function endDrawingOrDragging(e) {
             return;
         }
         clampRectToCanvas(currentRectangle, MIN_BLOCK_SIZE);
-        setSelectedBlock(currentRectangle.id);
+        setSelectedBlock(null);
         pushHistoryEntry({
             type: 'block_add',
             block: snapshotRect(currentRectangle)
@@ -3311,8 +3317,8 @@ function renderRectangles() {
         const handles = getResizeHandles(selectedRect);
         ctx.save();
         ctx.strokeStyle = '#111';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(bounds.x - 1, bounds.y - 1, bounds.width + 2, bounds.height + 2);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bounds.x - 0.5, bounds.y - 0.5, bounds.width + 1, bounds.height + 1);
         Object.values(handles).forEach(handle => {
             ctx.fillStyle = '#fff';
             ctx.fillRect(handle.x - RESIZE_HANDLE_SIZE / 2, handle.y - RESIZE_HANDLE_SIZE / 2, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
@@ -3347,8 +3353,8 @@ function renderRectanglesWithFadeIn(rectIndex, durationMs) {
             const handles = getResizeHandles(selectedRect);
             ctx.save();
             ctx.strokeStyle = '#111';
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(bounds.x - 1, bounds.y - 1, bounds.width + 2, bounds.height + 2);
+            ctx.lineWidth = 1;
+            ctx.strokeRect(bounds.x - 0.5, bounds.y - 0.5, bounds.width + 1, bounds.height + 1);
             Object.values(handles).forEach(handle => {
                 ctx.fillStyle = '#fff';
                 ctx.fillRect(handle.x - RESIZE_HANDLE_SIZE / 2, handle.y - RESIZE_HANDLE_SIZE / 2, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
