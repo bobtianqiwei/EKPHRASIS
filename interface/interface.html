@@ -267,6 +267,12 @@
             height: 30px;
             border-radius: 50%;
             cursor: pointer;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+        }
+        .color-option.selected {
+            border-color: #111;
+            box-shadow: 0 0 0 2px #fff inset;
         }
         .icon-btn {
             width: 36px;
@@ -874,11 +880,11 @@
                         </div>
                         <div class="color-palette-wrap">
                             <div class="color-palette">
-                                <div class="color-option" style="background-color: #D9D9D9;" onclick="setColor('#D9D9D9')"></div>
-                                <div class="color-option" style="background-color: #9C9C9C;" onclick="setColor('#9C9C9C')"></div>
-                                <div class="color-option" style="background-color: #535353;" onclick="setColor('#535353')"></div>
-                                <div class="color-option" style="background-color: #323131;" onclick="setColor('#323131')"></div>
-                                <div class="color-option" style="background-color: #000000;" onclick="setColor('#000000')"></div>
+                                <div class="color-option" data-color="#D9D9D9" style="background-color: #D9D9D9;" onclick="setColor('#D9D9D9')"></div>
+                                <div class="color-option" data-color="#9C9C9C" style="background-color: #9C9C9C;" onclick="setColor('#9C9C9C')"></div>
+                                <div class="color-option" data-color="#535353" style="background-color: #535353;" onclick="setColor('#535353')"></div>
+                                <div class="color-option" data-color="#323131" style="background-color: #323131;" onclick="setColor('#323131')"></div>
+                                <div class="color-option" data-color="#000000" style="background-color: #000000;" onclick="setColor('#000000')"></div>
                             </div>
                         </div>
                         <div class="icon-btn-group">
@@ -887,7 +893,7 @@
                         </div>
                     </div>
                     <div class="instructions">
-                        Click and drag to draw rectangles. Drag existing rectangles to move them.
+                        Click and drag to draw rectangles. Drag a block to move it, drag a corner to resize it, and click a swatch to recolor the selected block.
                     </div>
                 </div>
             </div>
@@ -1081,12 +1087,19 @@
     <script>
 let isDrawing = false;
 let isDragging = false;
+let isResizing = false;
 let startX, startY;
 let rectangles = [];
 let redoStack = [];
+let undoStack = [];
 let currentRectangle = null;
 let dragOffsetX, dragOffsetY;
 let currentColor = '#D9D9D9'; // Default color
+let selectedBlockId = null;
+let activeResizeHandle = null;
+let pendingResizeSnapshot = null;
+const MIN_BLOCK_SIZE = 12;
+const RESIZE_HANDLE_SIZE = 10;
 
 // Same-origin when served from backend (http://localhost:5001/); else explicit URL for file://
 const API_BASE = (window.location.hostname === 'localhost' && window.location.port === '5001') ? '' : 'http://localhost:5001';
@@ -1318,6 +1331,7 @@ function roundStudyNumber(n) {
 
 function ensureBlockId(rect) {
     if (rect && !rect.id) rect.id = 'b' + (++blockIdCounter);
+    if (rect && rect.id) syncBlockIdCounter(rect.id);
     return rect ? rect.id : null;
 }
 
@@ -1336,6 +1350,190 @@ function snapshotRect(rect) {
 
 function snapshotRectangles(rectList) {
     return (rectList || []).map(rect => snapshotRect(rect));
+}
+
+function syncBlockIdCounter(id) {
+    const match = typeof id === 'string' ? id.match(/^b(\d+)$/) : null;
+    if (!match) return;
+    const numericId = parseInt(match[1], 10);
+    if (!Number.isNaN(numericId)) blockIdCounter = Math.max(blockIdCounter, numericId);
+}
+
+function createRectFromSnapshot(snapshot) {
+    if (!snapshot) return null;
+    syncBlockIdCounter(snapshot.block_id);
+    const rect = {
+        id: snapshot.block_id,
+        x: Number(snapshot.x) || 0,
+        y: Number(snapshot.y) || 0,
+        width: Number(snapshot.width) || 0,
+        height: Number(snapshot.height) || 0,
+        color: snapshot.color || currentColor,
+        corners: null
+    };
+    rect.corners = calculateCorners(rect);
+    return rect;
+}
+
+function getRectangleIndexById(blockId) {
+    return rectangles.findIndex(rect => rect.id === blockId);
+}
+
+function getRectangleById(blockId) {
+    return rectangles.find(rect => rect.id === blockId) || null;
+}
+
+function getSelectedRectangle() {
+    return selectedBlockId ? getRectangleById(selectedBlockId) : null;
+}
+
+function getRectBounds(rect) {
+    if (!rect) return null;
+    const x1 = Number(rect.x) || 0;
+    const y1 = Number(rect.y) || 0;
+    const x2 = x1 + (Number(rect.width) || 0);
+    const y2 = y1 + (Number(rect.height) || 0);
+    return {
+        x: Math.min(x1, x2),
+        y: Math.min(y1, y2),
+        width: Math.abs(x2 - x1),
+        height: Math.abs(y2 - y1)
+    };
+}
+
+function normalizeRect(rect) {
+    if (!rect) return rect;
+    const bounds = getRectBounds(rect);
+    rect.x = bounds.x;
+    rect.y = bounds.y;
+    rect.width = bounds.width;
+    rect.height = bounds.height;
+    rect.corners = calculateCorners(rect);
+    return rect;
+}
+
+function clampRectToCanvas(rect, minSize) {
+    if (!rect) return rect;
+    const minimum = typeof minSize === 'number' ? minSize : 0;
+    rect.width = Math.max(minimum, Math.min(canvas.width, Number(rect.width) || 0));
+    rect.height = Math.max(minimum, Math.min(canvas.height, Number(rect.height) || 0));
+    rect.x = Math.max(0, Math.min(canvas.width - rect.width, Number(rect.x) || 0));
+    rect.y = Math.max(0, Math.min(canvas.height - rect.height, Number(rect.y) || 0));
+    rect.corners = calculateCorners(rect);
+    return rect;
+}
+
+function setSelectedBlock(blockId) {
+    selectedBlockId = blockId || null;
+}
+
+function getRectangleAtPoint(x, y) {
+    for (let i = rectangles.length - 1; i >= 0; i--) {
+        const rect = rectangles[i];
+        const bounds = getRectBounds(rect);
+        if (x >= bounds.x && x <= bounds.x + bounds.width &&
+            y >= bounds.y && y <= bounds.y + bounds.height) {
+            return rect;
+        }
+    }
+    return null;
+}
+
+function getResizeHandles(rect) {
+    const bounds = getRectBounds(rect);
+    if (!bounds) return {};
+    return {
+        nw: { x: bounds.x, y: bounds.y },
+        ne: { x: bounds.x + bounds.width, y: bounds.y },
+        sw: { x: bounds.x, y: bounds.y + bounds.height },
+        se: { x: bounds.x + bounds.width, y: bounds.y + bounds.height }
+    };
+}
+
+function getResizeHandleAtPoint(rect, x, y) {
+    const handles = getResizeHandles(rect);
+    const half = RESIZE_HANDLE_SIZE / 2;
+    for (const [name, handle] of Object.entries(handles)) {
+        if (x >= handle.x - half && x <= handle.x + half &&
+            y >= handle.y - half && y <= handle.y + half) {
+            return name;
+        }
+    }
+    return null;
+}
+
+function getCursorForHandle(handle) {
+    if (handle === 'nw' || handle === 'se') return 'nwse-resize';
+    if (handle === 'ne' || handle === 'sw') return 'nesw-resize';
+    return 'crosshair';
+}
+
+function getCanvasPoint(e) {
+    const bounds = canvas.getBoundingClientRect();
+    return {
+        x: e.clientX - bounds.left,
+        y: e.clientY - bounds.top
+    };
+}
+
+function updateColorPaletteSelection() {
+    const selectedRect = getSelectedRectangle();
+    const activeColor = (selectedRect && selectedRect.color) || currentColor;
+    document.querySelectorAll('.color-option').forEach(option => {
+        option.classList.toggle('selected', option.dataset.color === activeColor);
+    });
+}
+
+function pushHistoryEntry(entry) {
+    undoStack.push(entry);
+    redoStack = [];
+}
+
+function applySnapshotToRectangle(snapshot) {
+    if (!snapshot || !snapshot.block_id) return;
+    syncBlockIdCounter(snapshot.block_id);
+    const index = getRectangleIndexById(snapshot.block_id);
+    if (index >= 0) {
+        rectangles[index].x = Number(snapshot.x) || 0;
+        rectangles[index].y = Number(snapshot.y) || 0;
+        rectangles[index].width = Number(snapshot.width) || 0;
+        rectangles[index].height = Number(snapshot.height) || 0;
+        rectangles[index].color = snapshot.color || rectangles[index].color;
+        rectangles[index].corners = calculateCorners(rectangles[index]);
+        return;
+    }
+    const restored = createRectFromSnapshot(snapshot);
+    if (restored) rectangles.push(restored);
+}
+
+function removeRectangleById(blockId) {
+    const index = getRectangleIndexById(blockId);
+    if (index >= 0) rectangles.splice(index, 1);
+}
+
+function applyHistoryEntry(entry, direction) {
+    if (!entry) return;
+    const target = direction === 'undo' ? 'before' : 'after';
+    if (entry.type === 'block_add' && entry.block) {
+        if (direction === 'undo') removeRectangleById(entry.block.block_id);
+        else applySnapshotToRectangle(entry.block);
+        setSelectedBlock(direction === 'undo' ? null : entry.block.block_id);
+        return;
+    }
+    if (entry.type === 'clear_canvas') {
+        if (direction === 'undo') {
+            rectangles = (entry.blocks || []).map(createRectFromSnapshot).filter(Boolean);
+            setSelectedBlock(entry.selectedBlockId || null);
+        } else {
+            rectangles = [];
+            setSelectedBlock(null);
+        }
+        return;
+    }
+    if ((entry.type === 'block_move' || entry.type === 'block_resize' || entry.type === 'block_recolor') && entry.before && entry.after) {
+        applySnapshotToRectangle(entry[target]);
+        setSelectedBlock(entry[target].block_id);
+    }
 }
 
 function advanceStudyState() {
@@ -1699,6 +1897,7 @@ modeSelect.addEventListener('change', applyMode);
 restoreFromStorage();
 applyMode();
 lastCriterionValue = criterionSelect.value;
+renderRectangles();
 
 // Label Data mode state
 let labelDataCounts = { class_0: 0, class_1: 0, total: 0 };
@@ -1733,6 +1932,8 @@ function scheduleFetchLabelCounts() {
 
 function generateLabelDataImage() {
     rectangles = [];
+    setSelectedBlock(null);
+    undoStack = [];
     clearRedoStack();
     const numBlocks = Math.floor(Math.random() * 6) + 1; // 1 to 6 blocks
     for (let i = 0; i < numBlocks; i++) {
@@ -2028,11 +2229,20 @@ function describeStudyEvent(event) {
     if (event.event_type === 'block_move' && payload.from && payload.to) {
         return `${payload.block_id || ''} from (${payload.from.x}, ${payload.from.y}) to (${payload.to.x}, ${payload.to.y})`;
     }
+    if (event.event_type === 'block_resize' && payload.from && payload.to) {
+        return `${payload.block_id || ''} ${payload.from.width}×${payload.from.height} to ${payload.to.width}×${payload.to.height}`;
+    }
+    if (event.event_type === 'block_recolor') {
+        return `${payload.block_id || ''} ${payload.from_color || 'unknown'} to ${payload.to_color || 'unknown'}`;
+    }
     if (event.event_type === 'undo' && payload.removed_block) {
         return `Removed ${payload.removed_block.block_id}`;
     }
     if (event.event_type === 'redo' && payload.restored_block) {
         return `Restored ${payload.restored_block.block_id}`;
+    }
+    if ((event.event_type === 'undo' || event.event_type === 'redo') && payload.action_type) {
+        return `${event.event_type} ${payload.action_type}${payload.block_id ? ' ' + payload.block_id : ''}`;
     }
     if (event.event_type === 'clear_canvas') {
         return `Removed ${payload.cleared_count || 0} blocks`;
@@ -2062,7 +2272,7 @@ function describeStudyEvent(event) {
 }
 
 function computeAverageFeedbackLatency(events) {
-    const editTypes = new Set(['block_add', 'block_move', 'undo', 'redo', 'clear_canvas']);
+    const editTypes = new Set(['block_add', 'block_move', 'block_resize', 'block_recolor', 'undo', 'redo', 'clear_canvas']);
     const latencies = [];
     for (let i = 0; i < events.length; i++) {
         const event = events[i];
@@ -2604,7 +2814,11 @@ async function computerTurn() {
         if (strategy === 'random') {
             chosen = generateRandomBlock();
             rectangles.push(chosen);
-            clearRedoStack();
+            setSelectedBlock(chosen.id);
+            pushHistoryEntry({
+                type: 'block_add',
+                block: snapshotRect(chosen)
+            });
             renderRectanglesWithFadeIn(rectangles.length - 1, 500);
         } else {
             const criterion = criterionSelect.value;
@@ -2629,7 +2843,11 @@ async function computerTurn() {
                 : (res.best_class_0 ? res.best_class_0.index : (res.worst ? res.worst.index : 0));
             chosen = candidateBlocks[chosenIndex];
             rectangles.push(chosen);
-            clearRedoStack();
+            setSelectedBlock(chosen.id);
+            pushHistoryEntry({
+                type: 'block_add',
+                block: snapshotRect(chosen)
+            });
             renderRectanglesWithFadeIn(rectangles.length - 1, 500);
         }
         advanceStudyState();
@@ -2679,6 +2897,34 @@ async function computerTurn() {
 // Set current color when clicking color palette
 function setColor(color) {
     currentColor = color;
+    const selectedRect = getSelectedRectangle();
+    if (!selectedRect) {
+        updateColorPaletteSelection();
+        return;
+    }
+    const before = snapshotRect(selectedRect);
+    if (before.color === color) {
+        updateColorPaletteSelection();
+        return;
+    }
+    selectedRect.color = color;
+    selectedRect.corners = calculateCorners(selectedRect);
+    const after = snapshotRect(selectedRect);
+    pushHistoryEntry({
+        type: 'block_recolor',
+        block_id: selectedRect.id,
+        before: before,
+        after: after
+    });
+    advanceStudyState();
+    renderRectangles();
+    logStudyEvent('block_recolor', {
+        block_id: selectedRect.id,
+        from_color: before.color,
+        to_color: color,
+        from: before,
+        to: after
+    }, { stateSnapshot: true });
 }
 
 // Calculate corners for rectangle tracking
@@ -2766,10 +3012,28 @@ function generateAndSaveImage(rectangles, filename, size) {
     link.click();
 }
 
+function updateCanvasCursor(x, y) {
+    if (isResizing && activeResizeHandle) {
+        canvas.style.cursor = getCursorForHandle(activeResizeHandle);
+        return;
+    }
+    if (isDragging) {
+        canvas.style.cursor = 'grabbing';
+        return;
+    }
+    const selectedRect = getSelectedRectangle();
+    const handle = selectedRect ? getResizeHandleAtPoint(selectedRect, x, y) : null;
+    if (handle) {
+        canvas.style.cursor = getCursorForHandle(handle);
+        return;
+    }
+    canvas.style.cursor = getRectangleAtPoint(x, y) ? 'move' : 'crosshair';
+}
+
 // Event Listeners
 canvas.addEventListener('mousedown', startDrawingOrDragging);
 canvas.addEventListener('mousemove', drawOrDragRectangle);
-canvas.addEventListener('mouseup', endDrawingOrDragging);
+document.addEventListener('mouseup', endDrawingOrDragging);
 document.addEventListener('keydown', handleKeyPress);
 
 // Handle 'n' and 'b' key events (not in Label Data mode)
@@ -2801,7 +3065,11 @@ function addRandomRectangle() {
     };
     randomRectangle.corners = calculateCorners(randomRectangle);
     rectangles.push(randomRectangle);
-    clearRedoStack();
+    setSelectedBlock(randomRectangle.id);
+    pushHistoryEntry({
+        type: 'block_add',
+        block: snapshotRect(randomRectangle)
+    });
     advanceStudyState();
     renderRectangles();
     logStudyEvent('block_add', {
@@ -2832,20 +3100,33 @@ function addBlockToPage() {
 // Start drawing or dragging
 function startDrawingOrDragging(e) {
     if (chessComputerThinking) return;
-    startX = e.clientX - canvas.getBoundingClientRect().left;
-    startY = e.clientY - canvas.getBoundingClientRect().top;
+    const point = getCanvasPoint(e);
+    startX = point.x;
+    startY = point.y;
 
-    currentRectangle = rectangles.find(rect => 
-        startX >= rect.x && startX <= rect.x + rect.width &&
-        startY >= rect.y && startY <= rect.y + rect.height
-    );
+    const selectedRect = getSelectedRectangle();
+    const resizeHandle = selectedRect ? getResizeHandleAtPoint(selectedRect, startX, startY) : null;
+    if (selectedRect && resizeHandle) {
+        currentRectangle = selectedRect;
+        isResizing = true;
+        activeResizeHandle = resizeHandle;
+        pendingResizeSnapshot = snapshotRect(currentRectangle);
+        updateCanvasCursor(startX, startY);
+        return;
+    }
+
+    currentRectangle = getRectangleAtPoint(startX, startY);
 
     if (currentRectangle) {
+        setSelectedBlock(currentRectangle.id);
         isDragging = true;
         dragOffsetX = startX - currentRectangle.x;
         dragOffsetY = startY - currentRectangle.y;
         pendingMoveSnapshot = snapshotRect(currentRectangle);
+        renderRectangles();
+        updateCanvasCursor(startX, startY);
     } else {
+        setSelectedBlock(null);
         isDrawing = true;
         currentRectangle = {
             id: 'b' + (++blockIdCounter),
@@ -2857,43 +3138,75 @@ function startDrawingOrDragging(e) {
             corners: null
         };
         rectangles.push(currentRectangle);
-        clearRedoStack();
+        updateCanvasCursor(startX, startY);
     }
 }
 
 // Draw or drag rectangle
 function drawOrDragRectangle(e) {
-    if (isDrawing) {
-        const x = e.clientX - canvas.getBoundingClientRect().left;
-        const y = e.clientY - canvas.getBoundingClientRect().top;
+    const point = getCanvasPoint(e);
+    const x = point.x;
+    const y = point.y;
 
+    if (isDrawing) {
         currentRectangle.width = x - startX;
         currentRectangle.height = y - startY;
         currentRectangle.corners = calculateCorners(currentRectangle);
-        
         renderRectangles();
+        updateCanvasCursor(x, y);
+        return;
     }
 
     if (isDragging) {
-        const x = e.clientX - canvas.getBoundingClientRect().left;
-        const y = e.clientY - canvas.getBoundingClientRect().top;
-
         currentRectangle.x = x - dragOffsetX;
         currentRectangle.y = y - dragOffsetY;
-        currentRectangle.corners = calculateCorners(currentRectangle);
-
+        clampRectToCanvas(currentRectangle);
         renderRectangles();
+        updateCanvasCursor(x, y);
+        return;
     }
+
+    if (isResizing && currentRectangle && pendingResizeSnapshot) {
+        const startRect = pendingResizeSnapshot;
+        let left = startRect.x;
+        let top = startRect.y;
+        let right = startRect.x + startRect.width;
+        let bottom = startRect.y + startRect.height;
+
+        if (activeResizeHandle === 'nw' || activeResizeHandle === 'sw') {
+            left = Math.max(0, Math.min(x, right - MIN_BLOCK_SIZE));
+        } else {
+            right = Math.min(canvas.width, Math.max(x, left + MIN_BLOCK_SIZE));
+        }
+
+        if (activeResizeHandle === 'nw' || activeResizeHandle === 'ne') {
+            top = Math.max(0, Math.min(y, bottom - MIN_BLOCK_SIZE));
+        } else {
+            bottom = Math.min(canvas.height, Math.max(y, top + MIN_BLOCK_SIZE));
+        }
+
+        currentRectangle.x = left;
+        currentRectangle.y = top;
+        currentRectangle.width = right - left;
+        currentRectangle.height = bottom - top;
+        currentRectangle.corners = calculateCorners(currentRectangle);
+        renderRectangles();
+        updateCanvasCursor(x, y);
+        return;
+    }
+
+    updateCanvasCursor(x, y);
 }
 
 // End drawing or dragging
-function endDrawingOrDragging() {
-    if (isDrawing || isDragging) {
+function endDrawingOrDragging(e) {
+    if (!isDrawing && !isDragging && !isResizing) return;
+    if (isDrawing || isDragging || isResizing) {
         currentRectangle.corners = calculateCorners(currentRectangle);
-        if (isDragging) clearRedoStack();
     }
     const wasDrawing = isDrawing;
     const wasDragging = isDragging;
+    const wasResizing = isResizing;
     const hadNewBlock = wasDrawing && currentRectangle && (currentRectangle.width !== 0 || currentRectangle.height !== 0);
     if (wasDrawing && !hadNewBlock && currentRectangle) {
         rectangles.pop();
@@ -2901,9 +3214,27 @@ function endDrawingOrDragging() {
     }
     isDrawing = false;
     isDragging = false;
+    isResizing = false;
+    activeResizeHandle = null;
 
     if (hadNewBlock && currentRectangle) {
+        normalizeRect(currentRectangle);
+        if (currentRectangle.width < MIN_BLOCK_SIZE || currentRectangle.height < MIN_BLOCK_SIZE) {
+            rectangles.pop();
+            currentRectangle = null;
+            renderRectangles();
+            pendingMoveSnapshot = null;
+            pendingResizeSnapshot = null;
+            return;
+        }
+        clampRectToCanvas(currentRectangle, MIN_BLOCK_SIZE);
+        setSelectedBlock(currentRectangle.id);
+        pushHistoryEntry({
+            type: 'block_add',
+            block: snapshotRect(currentRectangle)
+        });
         advanceStudyState();
+        renderRectangles();
         logStudyEvent('block_add', {
             source: 'draw',
             block: snapshotRect(currentRectangle)
@@ -2915,6 +3246,12 @@ function endDrawingOrDragging() {
             pendingMoveSnapshot.width !== nextSnapshot.width ||
             pendingMoveSnapshot.height !== nextSnapshot.height;
         if (changed) {
+            pushHistoryEntry({
+                type: 'block_move',
+                block_id: currentRectangle.id,
+                before: pendingMoveSnapshot,
+                after: nextSnapshot
+            });
             advanceStudyState();
             logStudyEvent('block_move', {
                 block_id: currentRectangle.id,
@@ -2922,8 +3259,39 @@ function endDrawingOrDragging() {
                 to: nextSnapshot
             }, { stateSnapshot: true });
         }
+        renderRectangles();
+    } else if (wasResizing && currentRectangle && pendingResizeSnapshot) {
+        const nextSnapshot = snapshotRect(currentRectangle);
+        const changed = pendingResizeSnapshot.x !== nextSnapshot.x ||
+            pendingResizeSnapshot.y !== nextSnapshot.y ||
+            pendingResizeSnapshot.width !== nextSnapshot.width ||
+            pendingResizeSnapshot.height !== nextSnapshot.height;
+        if (changed) {
+            pushHistoryEntry({
+                type: 'block_resize',
+                block_id: currentRectangle.id,
+                before: pendingResizeSnapshot,
+                after: nextSnapshot
+            });
+            advanceStudyState();
+            logStudyEvent('block_resize', {
+                block_id: currentRectangle.id,
+                from: pendingResizeSnapshot,
+                to: nextSnapshot
+            }, { stateSnapshot: true });
+        }
+        renderRectangles();
+    } else {
+        renderRectangles();
     }
     pendingMoveSnapshot = null;
+    pendingResizeSnapshot = null;
+    if (e) {
+        const point = getCanvasPoint(e);
+        updateCanvasCursor(point.x, point.y);
+    } else {
+        canvas.style.cursor = 'crosshair';
+    }
     if (hadNewBlock && modeSelect.value === 'chess') {
         setTimeout(scheduleChessAfterUserMove, 0);
     }
@@ -2932,10 +3300,27 @@ function endDrawingOrDragging() {
 // Render all rectangles
 function renderRectangles() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (selectedBlockId && !getSelectedRectangle()) selectedBlockId = null;
     rectangles.forEach(rect => {
         ctx.fillStyle = rect.color;
         ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
     });
+    const selectedRect = getSelectedRectangle();
+    if (selectedRect) {
+        const bounds = getRectBounds(selectedRect);
+        const handles = getResizeHandles(selectedRect);
+        ctx.save();
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(bounds.x - 1, bounds.y - 1, bounds.width + 2, bounds.height + 2);
+        Object.values(handles).forEach(handle => {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(handle.x - RESIZE_HANDLE_SIZE / 2, handle.y - RESIZE_HANDLE_SIZE / 2, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
+            ctx.strokeRect(handle.x - RESIZE_HANDLE_SIZE / 2, handle.y - RESIZE_HANDLE_SIZE / 2, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
+        });
+        ctx.restore();
+    }
+    updateColorPaletteSelection();
 }
 
 // Render with the rectangle at rectIndex fading in over durationMs (for chess computer block)
@@ -2956,6 +3341,22 @@ function renderRectanglesWithFadeIn(rectIndex, durationMs) {
                 ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
             }
         });
+        const selectedRect = getSelectedRectangle();
+        if (selectedRect) {
+            const bounds = getRectBounds(selectedRect);
+            const handles = getResizeHandles(selectedRect);
+            ctx.save();
+            ctx.strokeStyle = '#111';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(bounds.x - 1, bounds.y - 1, bounds.width + 2, bounds.height + 2);
+            Object.values(handles).forEach(handle => {
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(handle.x - RESIZE_HANDLE_SIZE / 2, handle.y - RESIZE_HANDLE_SIZE / 2, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
+                ctx.strokeRect(handle.x - RESIZE_HANDLE_SIZE / 2, handle.y - RESIZE_HANDLE_SIZE / 2, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
+            });
+            ctx.restore();
+        }
+        updateColorPaletteSelection();
         if (t < 1) requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
@@ -2964,8 +3365,16 @@ function renderRectanglesWithFadeIn(rectIndex, durationMs) {
 // Clear canvas
 function clearCanvas() {
     const clearedBlocks = snapshotRectangles(rectangles);
+    const previousSelectedBlockId = selectedBlockId;
     rectangles = [];
-    clearRedoStack();
+    setSelectedBlock(null);
+    if (clearedBlocks.length > 0) {
+        pushHistoryEntry({
+            type: 'clear_canvas',
+            blocks: clearedBlocks,
+            selectedBlockId: previousSelectedBlockId
+        });
+    }
     advanceStudyState();
     renderRectangles();
     if (modeSelect.value === 'chess') setChessMessage('');
@@ -3169,27 +3578,39 @@ function clearRedoStack() {
 
 // Undo last action
 function undoLastAction() {
-    if (rectangles.length > 0) {
-        const removed = rectangles.pop();
-        redoStack.push(removed);
+    if (undoStack.length > 0) {
+        const entry = undoStack.pop();
+        applyHistoryEntry(entry, 'undo');
+        redoStack.push(entry);
         advanceStudyState();
         renderRectangles();
-        logStudyEvent('undo', {
-            removed_block: snapshotRect(removed)
-        }, { stateSnapshot: true });
+        const payload = { action_type: entry.type };
+        if (entry.type === 'block_add' && entry.block) {
+            payload.removed_block = entry.block;
+            payload.block_id = entry.block.block_id;
+        } else if ((entry.type === 'block_move' || entry.type === 'block_resize' || entry.type === 'block_recolor') && entry.before) {
+            payload.block_id = entry.before.block_id;
+        }
+        logStudyEvent('undo', payload, { stateSnapshot: true });
     }
 }
 
 // Redo last undone action
 function redoLastAction() {
     if (redoStack.length > 0) {
-        const restored = redoStack.pop();
-        rectangles.push(restored);
+        const entry = redoStack.pop();
+        applyHistoryEntry(entry, 'redo');
+        undoStack.push(entry);
         advanceStudyState();
         renderRectangles();
-        logStudyEvent('redo', {
-            restored_block: snapshotRect(restored)
-        }, { stateSnapshot: true });
+        const payload = { action_type: entry.type };
+        if (entry.type === 'block_add' && entry.block) {
+            payload.restored_block = entry.block;
+            payload.block_id = entry.block.block_id;
+        } else if ((entry.type === 'block_move' || entry.type === 'block_resize' || entry.type === 'block_recolor') && entry.after) {
+            payload.block_id = entry.after.block_id;
+        }
+        logStudyEvent('redo', payload, { stateSnapshot: true });
     }
 }
 
