@@ -1079,9 +1079,6 @@
                 <label for="criterionSelect" class="criterion-label">Practice vocabulary:</label>
                 <select id="criterionSelect" class="criterion-select">
                     <option value="visual_balance">Visual Balance</option>
-                    <option value="visual_harmony">Visual Harmony</option>
-                    <option value="visual_hierarchy">Visual Hierarchy</option>
-                    <option value="contrast">Contrast</option>
                     <option value="rhythm">Rhythm</option>
                     <option value="emphasis">Emphasis</option>
                 </select>
@@ -1152,9 +1149,6 @@ const API_BASE = (window.location.hostname === 'localhost' && window.location.po
 // Design vocabularies: loaded from API (GET /criteria), fallback if server offline
 let CRITERIA_LIST = [
     { id: 'visual_balance', name: 'Visual Balance' },
-    { id: 'visual_harmony', name: 'Visual Harmony' },
-    { id: 'visual_hierarchy', name: 'Visual Hierarchy' },
-    { id: 'contrast', name: 'Contrast' },
     { id: 'rhythm', name: 'Rhythm' },
     { id: 'emphasis', name: 'Emphasis' }
 ];

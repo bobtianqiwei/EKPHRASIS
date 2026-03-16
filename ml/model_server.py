@@ -21,9 +21,6 @@ INTERFACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 # model_file is relative to the ml/ directory (e.g. models/visual_balance.h5).
 CRITERIA = [
     {'id': 'visual_balance', 'name': 'Visual Balance', 'model_file': 'models/visual_balance.h5'},
-    {'id': 'visual_harmony', 'name': 'Visual Harmony', 'model_file': 'models/visual_harmony.h5'},
-    {'id': 'visual_hierarchy', 'name': 'Visual Hierarchy', 'model_file': 'models/visual_hierarchy.h5'},
-    {'id': 'contrast', 'name': 'Contrast', 'model_file': 'models/contrast.h5'},
     {'id': 'rhythm', 'name': 'Rhythm', 'model_file': 'models/rhythm.h5'},
     {'id': 'emphasis', 'name': 'Emphasis', 'model_file': 'models/emphasis.h5'},
 ]
