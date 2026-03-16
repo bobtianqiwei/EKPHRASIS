@@ -81,9 +81,7 @@ def train_vocabulary_model(vocabulary_id: str):
     # Train
     fit_kw = {
         "epochs": 10,
-        "steps_per_epoch": train_generator.samples // train_generator.batch_size,
         "validation_data": validation_generator,
-        "validation_steps": validation_generator.samples // validation_generator.batch_size,
     }
     if class_weight is not None:
         fit_kw["class_weight"] = class_weight
