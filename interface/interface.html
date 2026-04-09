@@ -730,6 +730,35 @@
             color: #777;
             line-height: 1.5;
         }
+        .study-analysis-group-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .study-analysis-group-item {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background: #fafafa;
+            padding: 8px 10px;
+        }
+        .study-analysis-group-item-meta {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .study-analysis-group-item-type {
+            font-size: 12px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 4px;
+        }
+        .study-analysis-group-item-body {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
         .study-analysis-empty { font-size: 13px; color: #888; text-align: center; padding: 24px 0; }
         @media (max-width: 980px) {
             .study-analysis-grid { grid-template-columns: 1fr; }
@@ -2392,16 +2421,76 @@ function renderStudyAnalysisBars(events) {
     el.innerHTML = `<div class="study-analysis-bars">${entries.map(([name, count]) => `<div class="study-analysis-bar-row"><div>${name}</div><div class="study-analysis-bar-track"><div class="study-analysis-bar-fill" style="width:${Math.max(6, (count / max) * 100)}%"></div></div><div>${count}</div></div>`).join('')}</div>`;
 }
 
-function renderStudyAnalysisTimeline(events) {
+function isCompactTimelineEventType(eventType) {
+    return eventType === 'task_started' ||
+        eventType === 'task_completed' ||
+        eventType === 'mode_changed' ||
+        eventType === 'criterion_changed';
+}
+
+function getStudyAnalysisTimelineItemId(item) {
+    if (!item) return '';
+    if (item.is_group) return item.timeline_id || '';
+    return item.event_id || '';
+}
+
+function buildStudyAnalysisTimelineItems(events) {
+    const recentEvents = events.slice(-200);
+    const grouped = [];
+    let compactBuffer = [];
+    const flushCompactBuffer = function () {
+        if (!compactBuffer.length) return;
+        if (compactBuffer.length === 1) {
+            grouped.push(compactBuffer[0]);
+        } else {
+            const first = compactBuffer[0];
+            const last = compactBuffer[compactBuffer.length - 1];
+            grouped.push({
+                is_group: true,
+                timeline_id: `group:${first.event_id || 'start'}:${last.event_id || 'end'}`,
+                event_type: 'system_group',
+                timestamp: last.timestamp || first.timestamp || '',
+                participant_id: last.participant_id || first.participant_id || '',
+                session_id: last.session_id || first.session_id || '',
+                app_mode: last.app_mode || first.app_mode || '',
+                criterion: last.criterion || first.criterion || '',
+                events: compactBuffer.slice()
+            });
+        }
+        compactBuffer = [];
+    };
+    recentEvents.forEach(event => {
+        if (isCompactTimelineEventType(event.event_type)) {
+            compactBuffer.push(event);
+            return;
+        }
+        flushCompactBuffer();
+        grouped.push(event);
+    });
+    flushCompactBuffer();
+    return grouped.reverse();
+}
+
+function describeStudyTimelineGroup(item) {
+    const events = item && Array.isArray(item.events) ? item.events : [];
+    if (!events.length) return 'Grouped system events';
+    const counts = {};
+    events.forEach(event => {
+        const type = event.event_type || 'unknown';
+        counts[type] = (counts[type] || 0) + 1;
+    });
+    return Object.entries(counts).map(([type, count]) => `${count} ${type}`).join(' · ');
+}
+
+function renderStudyAnalysisTimeline(timelineItems) {
     const el = document.getElementById('studyAnalysisTimeline');
     if (!el) return;
     const existingTimeline = el.querySelector('.study-analysis-timeline');
     if (existingTimeline) studyAnalysisPreservedTimelineScrollTop = existingTimeline.scrollTop;
-    if (!events.length) {
+    if (!timelineItems.length) {
         el.innerHTML = '<div class="study-analysis-empty">No events for the current filter.</div>';
         return;
     }
-    const items = events.slice(-200).reverse();
     const formatLocalTimeWithUtc = function (utcIso) {
         if (!utcIso) return '';
         const t = new Date(utcIso);
@@ -2412,12 +2501,6 @@ function renderStudyAnalysisTimeline(events) {
         if (eventType === 'feedback_returned') return 'highlight-feedback';
         if (eventType === 'block_add' || eventType === 'block_move') return 'highlight-edit';
         return '';
-    };
-    const isCompactTimelineEvent = function (eventType) {
-        return eventType === 'task_started' ||
-            eventType === 'task_completed' ||
-            eventType === 'mode_changed' ||
-            eventType === 'criterion_changed';
     };
     const getTimelinePreviewSrc = function (event) {
         const payload = event.payload || {};
@@ -2433,15 +2516,18 @@ function renderStudyAnalysisTimeline(events) {
         }
         return '';
     };
-    el.innerHTML = `<div class="study-analysis-timeline">${items.map(event => {
-        const highlightClass = getTimelineHighlightClass(event.event_type);
-        const compactClass = isCompactTimelineEvent(event.event_type) ? ' compact' : '';
-        const selectedClass = event.event_id === studyAnalysisSelectedEventId ? ' selected' : '';
+    el.innerHTML = `<div class="study-analysis-timeline">${timelineItems.map(item => {
+        const itemId = getStudyAnalysisTimelineItemId(item);
+        const highlightClass = item.is_group ? '' : getTimelineHighlightClass(item.event_type);
+        const compactClass = item.is_group || isCompactTimelineEventType(item.event_type) ? ' compact' : '';
+        const selectedClass = itemId === studyAnalysisSelectedEventId ? ' selected' : '';
         const eventClass = `study-analysis-event${compactClass}${selectedClass}${highlightClass ? ' ' + highlightClass : ''}`;
         const typeClass = `study-analysis-event-type${highlightClass ? ' ' + highlightClass : ''}`;
-        const previewSrc = getTimelinePreviewSrc(event);
-        const previewHtml = previewSrc ? `<img class="study-analysis-event-thumb" src="${previewSrc}" alt="${event.event_type} preview">` : '';
-        return `<div class="${eventClass}" data-event-id="${event.event_id || ''}"><div class="study-analysis-event-layout"><div class="study-analysis-event-main"><div class="study-analysis-event-meta">${formatLocalTimeWithUtc(event.timestamp)} · ${(event.session_id || '').slice(0, 18)} · ${event.app_mode || ''} · ${event.criterion || ''}</div><div class="study-analysis-event-head"><div class="${typeClass}">${event.event_type}</div></div><div class="study-analysis-event-body">${describeStudyEvent(event)}</div></div>${previewHtml}</div></div>`;
+        const previewSrc = item.is_group ? '' : getTimelinePreviewSrc(item);
+        const previewHtml = previewSrc ? `<img class="study-analysis-event-thumb" src="${previewSrc}" alt="${item.event_type} preview">` : '';
+        const itemTypeLabel = item.is_group ? `${(item.events || []).length} system events` : item.event_type;
+        const itemBody = item.is_group ? describeStudyTimelineGroup(item) : describeStudyEvent(item);
+        return `<div class="${eventClass}" data-event-id="${itemId}"><div class="study-analysis-event-layout"><div class="study-analysis-event-main"><div class="study-analysis-event-meta">${formatLocalTimeWithUtc(item.timestamp)} · ${(item.session_id || '').slice(0, 18)} · ${item.app_mode || ''} · ${item.criterion || ''}</div><div class="study-analysis-event-head"><div class="${typeClass}">${itemTypeLabel}</div></div><div class="study-analysis-event-body">${itemBody}</div></div>${previewHtml}</div></div>`;
     }).join('')}</div>`;
     const nextTimeline = el.querySelector('.study-analysis-timeline');
     if (nextTimeline) nextTimeline.scrollTop = studyAnalysisPreservedTimelineScrollTop || 0;
@@ -2507,6 +2593,30 @@ function renderStudyAnalysisDetail(event) {
     if (!detailEl) return;
     if (!event) {
         detailEl.innerHTML = '<div class="study-analysis-empty">Select a timeline event to inspect images.</div>';
+        updateStudyAnalysisHeights();
+        return;
+    }
+    if (event.is_group) {
+        const events = Array.isArray(event.events) ? event.events : [];
+        const localTime = (function () {
+            const utcIso = event.timestamp || '';
+            if (!utcIso) return '';
+            const t = new Date(utcIso);
+            if (Number.isNaN(t.getTime())) return utcIso;
+            return t.toLocaleString() + ' (' + utcIso + ')';
+        })();
+        const metaHtml = `<div class="study-analysis-detail-meta">${localTime}<br>${events.length} grouped system events · ${event.app_mode || ''} · ${event.criterion || ''}</div>`;
+        const listHtml = `<div class="study-analysis-group-list">${events.map(groupEvent => {
+            const groupTime = (function () {
+                const utcIso = groupEvent.timestamp || '';
+                if (!utcIso) return '';
+                const t = new Date(utcIso);
+                if (Number.isNaN(t.getTime())) return utcIso;
+                return t.toLocaleString();
+            })();
+            return `<div class="study-analysis-group-item"><div class="study-analysis-group-item-meta">${groupTime}</div><div class="study-analysis-group-item-type">${groupEvent.event_type}</div><div class="study-analysis-group-item-body">${describeStudyEvent(groupEvent)}</div></div>`;
+        }).join('')}</div>`;
+        detailEl.innerHTML = metaHtml + listHtml;
         updateStudyAnalysisHeights();
         return;
     }
@@ -2651,9 +2761,10 @@ function exportStudyAnalysisCsv() {
 function renderStudyAnalysis() {
     const user = (document.getElementById('studyAnalysisUserSelect') || {}).value || '';
     const events = getFilteredStudyEvents();
+    const timelineItems = buildStudyAnalysisTimelineItems(events);
     studyAnalysisFilteredEvents = events.slice();
-    const selectedEvent = events.find(event => event.event_id === studyAnalysisSelectedEventId) || null;
-    if (!selectedEvent && !events.some(event => event.event_id === studyAnalysisSelectedEventId)) {
+    const selectedEvent = timelineItems.find(item => getStudyAnalysisTimelineItemId(item) === studyAnalysisSelectedEventId) || null;
+    if (!selectedEvent && !timelineItems.some(item => getStudyAnalysisTimelineItemId(item) === studyAnalysisSelectedEventId)) {
         studyAnalysisSelectedEventId = null;
     }
     const statusEl = document.getElementById('studyAnalysisStatus');
@@ -2664,7 +2775,7 @@ function renderStudyAnalysis() {
     }
     renderStudyAnalysisCards(events);
     renderStudyAnalysisBars(events);
-    renderStudyAnalysisTimeline(events);
+    renderStudyAnalysisTimeline(timelineItems);
     renderStudyAnalysisDetail(selectedEvent);
     updateStudyAnalysisHeights();
 }
