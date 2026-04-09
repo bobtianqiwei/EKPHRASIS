@@ -2128,14 +2128,7 @@ document.getElementById('testModelRunBtn').addEventListener('click', async funct
             r.readAsDataURL(f);
         })));
         const criterion = criterionSelect.value;
-        const res = await fetch(API_BASE + '/predict_multiple', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ criterion, images })
-        });
-        if (!res.ok) throw new Error(await res.text() || 'Request failed');
-        const result = await res.json();
-        if (result.error) throw new Error(result.error);
+        const result = await fetchModelJson('/predict_multiple', { criterion, images });
         const byIndex = {};
         (result.all_results || []).forEach(r => { byIndex[r.index] = r; });
         images.forEach((dataUrl, i) => {
@@ -2187,14 +2180,7 @@ document.getElementById('testModelDatasetBtn').addEventListener('click', async f
         
         btn.textContent = `Running ${images.length} images…`;
         const criterion = criterionSelect.value;
-        const res = await fetch(API_BASE + '/predict_multiple', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ criterion, images })
-        });
-        if (!res.ok) throw new Error(await res.text() || 'Request failed');
-        const result = await res.json();
-        if (result.error) throw new Error(result.error);
+        const result = await fetchModelJson('/predict_multiple', { criterion, images });
         
         const byIndex = {};
         (result.all_results || []).forEach(r => { byIndex[r.index] = r; });
@@ -2686,7 +2672,11 @@ function checkServer(silent) {
     statusModalBody.innerHTML = '';
 
     fetch(API_BASE + '/health', { method: 'GET' })
-        .then(r => r.json())
+        .then(async function (r) {
+            const data = await r.json().catch(function () { return {}; });
+            if (!r.ok || !data.model_loaded) throw new Error('Server is not ready');
+            return data;
+        })
         .then(data => {
             serverStatusDot.className = 'status-dot connected';
             statusModal.className = 'status-modal ok';
@@ -2727,6 +2717,52 @@ function showStatusToast(message) {
         el.classList.remove('show');
         el.textContent = '';
     }, 10000);
+}
+
+const MODEL_REQUEST_TIMEOUT_MS = 15000;
+const MODEL_REQUEST_RETRY_DELAY_MS = 4000;
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchModelJson(path, payload, options) {
+    const settings = options || {};
+    const timeoutMs = settings.timeoutMs || MODEL_REQUEST_TIMEOUT_MS;
+    const retryCount = settings.retryCount == null ? 1 : settings.retryCount;
+
+    for (let attempt = 0; attempt <= retryCount; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(function () {
+            controller.abort();
+        }, timeoutMs);
+        try {
+            const response = await fetch(API_BASE + path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+            if (!response.ok) throw new Error(await response.text() || ('HTTP error! status: ' + response.status));
+            const result = await response.json();
+            if (result.error) throw new Error(result.error);
+            return result;
+        } catch (error) {
+            if (error.name === 'AbortError' && attempt < retryCount) {
+                showStatusToast('Model request timed out. Waiting for the ML server to restart, then retrying once...');
+                await sleep(MODEL_REQUEST_RETRY_DELAY_MS);
+                continue;
+            }
+            if (error.name === 'AbortError') {
+                throw new Error('Model request timed out after 15 seconds. The ML server is restarting automatically. Please try again in a few seconds.');
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    throw new Error('Model request failed.');
 }
 
 // Define grey color palette
@@ -2780,12 +2816,7 @@ function generateRandomBlock() {
 function chessRunModel() {
     const criterion = criterionSelect.value;
     const image = generateImageAsBase64(rectangles);
-    return fetch(API_BASE + '/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ criterion: criterion, image: image })
-    }).then(r => r.json()).then(data => {
-        if (data.error) throw new Error(data.error);
+    return fetchModelJson('/predict', { criterion: criterion, image: image }).then(data => {
         return data.confidence;
     });
 }
@@ -2863,12 +2894,7 @@ async function computerTurn() {
                 candidateBlocks = [];
                 for (let i = 0; i < 20; i++) candidateBlocks.push(generateRandomBlock());
                 const images = candidateBlocks.map(block => generateImageAsBase64([...rectangles, block]));
-                res = await fetch(API_BASE + '/predict_multiple', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ criterion: criterion, images: images })
-                }).then(r => r.json());
-                if (res.error) throw new Error(res.error);
+                res = await fetchModelJson('/predict_multiple', { criterion: criterion, images: images });
                 if (res.best_class_0 && res.best_class_1) break;
             }
             chosenIndex = strategy === 'help'
@@ -3462,18 +3488,7 @@ async function evaluateWithAI() {
             }
             allVariations = [rectangles, ...variations];
             const images = allVariations.map(r => generateImageAsBase64(r));
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000);
-            const response = await fetch(API_BASE + '/predict_multiple', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ criterion: criterion, images: images }),
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            result = await response.json();
-            if (result.error) throw new Error(result.error);
+            result = await fetchModelJson('/predict_multiple', { criterion: criterion, images: images });
             if (result.best_class_0 && result.best_class_1) break;
         }
 
@@ -3585,9 +3600,7 @@ async function evaluateWithAI() {
 
     } catch (error) {
         console.error('Error evaluating with AI:', error);
-        const msg = error.name === 'AbortError'
-            ? 'Request timed out (60s). Is the ML server running? Run: cd ml && python3 start_server.py'
-            : ('Error: ' + (error.message || 'Could not reach ML server. Run: cd ml && python3 start_server.py'));
+        const msg = 'Error: ' + (error.message || 'Could not reach ML server. Run: cd ml && python3 start_server.py');
         logStudyEvent('feedback_error', {
             stage: 'visual_aids',
             message: error.message || 'Could not reach ML server.'

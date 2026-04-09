@@ -2,20 +2,22 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import numpy as np
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing import image
+from PIL import Image
 import os
 import re
 import random
 import base64
-import tempfile
 import datetime
 import json
+import threading
+from io import BytesIO
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Serve frontend from project interface/ folder (so user opens http://localhost:5001/)
-INTERFACE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'interface')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INTERFACE_DIR = os.path.join(BASE_DIR, '..', 'interface')
 
 # Each design vocabulary has its own model. Add new entries when you train new models.
 # model_file is relative to the ml/ directory (e.g. models/visual_balance.h5).
@@ -29,13 +31,24 @@ CRITERIA = [
 models = {}
 for c in CRITERIA:
     try:
-        models[c['id']] = load_model(c['model_file'])
-        print(f"Model loaded for criterion: {c['name']} ({c['model_file']})")
+        model_path = os.path.join(BASE_DIR, c['model_file'])
+        models[c['id']] = load_model(model_path)
+        print(f"Model loaded for criterion: {c['name']} ({model_path})")
     except Exception as e:
         print(f"Warning: Could not load {c['model_file']} for '{c['name']}': {e}")
 
 # Legacy single-model reference for /health (any loaded model counts as "ready")
 model = list(models.values())[0] if models else None
+prediction_lock = threading.RLock()
+health_probe_array = np.ones((1, 224, 224, 3), dtype=np.float32)
+
+def _parse_image_from_data_url(base64_string):
+    """Decode a data URL and return an RGB image resized for inference."""
+    _, b64 = base64_string.split(',', 1)
+    image_data = base64.b64decode(b64)
+    with Image.open(BytesIO(image_data)) as img:
+        rgb = img.convert('RGB')
+        return rgb.resize((224, 224))
 
 def predict_image_from_base64(base64_string, model_obj):
     """
@@ -46,34 +59,42 @@ def predict_image_from_base64(base64_string, model_obj):
         return {"error": "Model not loaded"}
     
     try:
-        # Parse data URL (e.g. data:image/png;base64,...)
-        header, b64 = base64_string.split(',', 1)
-        image_data = base64.b64decode(b64)
-        suffix = '.png'
-        if 'jpeg' in header or 'jpg' in header:
-            suffix = '.jpg'
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp.write(image_data)
-            tmp_path = tmp.name
-        try:
-            img = image.load_img(tmp_path, target_size=(224, 224))
-            img_array = image.img_to_array(img)
-            img_array = np.expand_dims(img_array, axis=0)
-            img_array /= 255.0
-            prediction = model_obj.predict(img_array)
-            confidence = float(prediction[0][0])
-            return {
-                "confidence": confidence,
-                "class": "class_1" if confidence >= 0.5 else "class_0",
-                "score": confidence if confidence >= 0.5 else 1 - confidence
-            }
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except Exception:
-                pass
+        img = _parse_image_from_data_url(base64_string)
+        img_array = np.asarray(img, dtype=np.float32)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array /= 255.0
+        with prediction_lock:
+            prediction = model_obj.predict(img_array, verbose=0)
+        confidence = float(prediction[0][0])
+        return {
+            "confidence": confidence,
+            "class": "class_1" if confidence >= 0.5 else "class_0",
+            "score": confidence if confidence >= 0.5 else 1 - confidence
+        }
     except Exception as e:
         return {"error": str(e)}
+
+def run_health_probe():
+    """Run one small real prediction to verify that inference still works."""
+    if not models:
+        return {"status": "unhealthy", "model_loaded": False, "error": "No model loaded"}, 503
+    criterion_id = next(iter(models.keys()))
+    try:
+        with prediction_lock:
+            prediction = models[criterion_id].predict(health_probe_array, verbose=0)
+        return {
+            "status": "ready",
+            "model_loaded": True,
+            "criterion": criterion_id,
+            "confidence": float(prediction[0][0])
+        }, 200
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "model_loaded": True,
+            "criterion": criterion_id,
+            "error": str(e)
+        }, 503
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -426,7 +447,23 @@ def health():
     """
     Health check endpoint
     """
-    return jsonify({"status": "healthy", "model_loaded": model is not None})
+    if model is None:
+        return jsonify({
+            "status": "unhealthy",
+            "model_loaded": False,
+            "loaded_criteria": []
+        }), 503
+    return jsonify({
+        "status": "healthy",
+        "model_loaded": True,
+        "loaded_criteria": sorted(models.keys())
+    })
+
+@app.route('/health/predict', methods=['GET'])
+def health_predict():
+    """Deep health check that runs one real prediction."""
+    payload, status_code = run_health_probe()
+    return jsonify(payload), status_code
 
 @app.route('/test_images', methods=['GET'])
 def get_test_images():
@@ -462,4 +499,4 @@ def logo():
     return send_from_directory(INTERFACE_DIR, 'logo.png')
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001) 
+    app.run(debug=False, use_reloader=False, threaded=True, port=5001)
