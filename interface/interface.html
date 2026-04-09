@@ -3475,8 +3475,10 @@ async function evaluateWithAI() {
         const criterion = criterionSelect.value;
         let result;
         let allVariations = [rectangles];
+        let cumulativeVariations = [rectangles];
         const maxAttempts = 10;
         let attemptCount = 0;
+        let satisfactoryFound = false;
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             attemptCount = attempt + 1;
             if (attempt >= 1) {
@@ -3486,10 +3488,14 @@ async function evaluateWithAI() {
             for (let i = 0; i < 20; i++) {
                 variations.push(createVariation(rectangles));
             }
-            allVariations = [rectangles, ...variations];
-            const images = allVariations.map(r => generateImageAsBase64(r));
+            cumulativeVariations = cumulativeVariations.concat(variations);
+            allVariations = cumulativeVariations;
+            const images = cumulativeVariations.map(r => generateImageAsBase64(r));
             result = await fetchModelJson('/predict_multiple', { criterion: criterion, images: images });
-            if (result.best_class_0 && result.best_class_1) break;
+            if (result.best_class_0 && result.best_class_1 && result.best_class_1.confidence >= 0.8) {
+                satisfactoryFound = true;
+                break;
+            }
         }
 
         let lessIndex, moreIndex, lessPct, morePct, lessClass, moreClass;
@@ -3587,8 +3593,10 @@ async function evaluateWithAI() {
         await logStudyEvent('feedback_returned', {
             attempt_count: attemptCount,
             candidate_count: 20,
+            cumulative_candidate_count: allVariations.length,
             returned_count: (result.all_results || []).length,
             fallback_used: fallbackUsed,
+            satisfactory_found: satisfactoryFound,
             user_prediction: userResult ? {
                 class_label: userResult.class === 'class_1' ? 'More' : 'Less',
                 confidence_pct: (userResult.confidence * 100).toFixed(1)
