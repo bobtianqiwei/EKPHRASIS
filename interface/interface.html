@@ -2507,6 +2507,12 @@ function renderStudyAnalysisTimeline(timelineItems) {
         if (Number.isNaN(t.getTime())) return utcIso;
         return t.toLocaleString() + ' (' + utcIso + ')';
     };
+    const formatLocalTimeOnly = function (utcIso) {
+        if (!utcIso) return '';
+        const t = new Date(utcIso);
+        if (Number.isNaN(t.getTime())) return utcIso;
+        return t.toLocaleString();
+    };
     const getTimelineHighlightClass = function (eventType) {
         if (eventType === 'feedback_returned') return 'highlight-feedback';
         if (eventType === 'block_add' || eventType === 'block_move' || eventType === 'block_resize' || eventType === 'undo' || eventType === 'redo') return 'highlight-edit';
@@ -2538,7 +2544,10 @@ function renderStudyAnalysisTimeline(timelineItems) {
         const previewHtml = previewSrc ? `<img class="study-analysis-event-thumb" src="${previewSrc}" alt="${item.event_type} preview">` : '';
         const itemTypeLabel = item.is_group ? `${(item.events || []).length} system events` : item.event_type;
         const itemBody = item.is_group ? describeStudyTimelineGroup(item) : describeStudyEvent(item);
-        return `<div class="${eventClass}" data-event-id="${itemId}"><div class="study-analysis-event-layout"><div class="study-analysis-event-main"><div class="study-analysis-event-meta">${formatLocalTimeWithUtc(item.timestamp)} · ${(item.session_id || '').slice(0, 18)} · ${item.app_mode || ''} · ${item.criterion || ''}</div><div class="study-analysis-event-head"><div class="${typeClass}">${itemTypeLabel}</div></div><div class="study-analysis-event-body">${itemBody}</div></div>${previewHtml}</div></div>`;
+        const metaText = highlightClass
+            ? `${formatLocalTimeOnly(item.timestamp)} · ${item.app_mode || ''} · ${item.criterion || ''}`
+            : `${formatLocalTimeWithUtc(item.timestamp)} · ${(item.session_id || '').slice(0, 18)} · ${item.app_mode || ''} · ${item.criterion || ''}`;
+        return `<div class="${eventClass}" data-event-id="${itemId}"><div class="study-analysis-event-layout"><div class="study-analysis-event-main"><div class="study-analysis-event-meta">${metaText}</div><div class="study-analysis-event-head"><div class="${typeClass}">${itemTypeLabel}</div></div><div class="study-analysis-event-body">${itemBody}</div></div>${previewHtml}</div></div>`;
     }).join('')}</div>`;
     const nextTimeline = el.querySelector('.study-analysis-timeline');
     if (nextTimeline) nextTimeline.scrollTop = studyAnalysisPreservedTimelineScrollTop || 0;
@@ -2669,7 +2678,8 @@ function renderStudyAnalysisDetail(event) {
                 if (Number.isNaN(t.getTime())) return utcIso;
                 return t.toLocaleString();
             })();
-            return `<div class="study-analysis-group-item"><div class="study-analysis-group-item-meta">${groupTime}</div><div class="study-analysis-group-item-type">${groupEvent.event_type}</div><div class="study-analysis-group-item-body">${describeStudyEvent(groupEvent)}</div></div>`;
+            const groupMeta = [groupTime, groupEvent.app_mode || '', groupEvent.criterion || ''].filter(Boolean).join(' · ');
+            return `<div class="study-analysis-group-item"><div class="study-analysis-group-item-meta">${groupMeta}</div><div class="study-analysis-group-item-type">${groupEvent.event_type}</div><div class="study-analysis-group-item-body">${describeStudyEvent(groupEvent)}</div></div>`;
         }).join('')}</div>`;
         detailEl.innerHTML = metaHtml + listHtml;
         updateStudyAnalysisHeights();
