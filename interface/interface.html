@@ -2410,6 +2410,35 @@ function renderStudyAnalysisImageCard(label, src, alt) {
     return `<div class="study-analysis-detail-card"><div class="label">${label}</div><img src="${src}" alt="${alt}"></div>`;
 }
 
+function buildStudyEventPreviewStates(event) {
+    const payload = event && event.payload ? event.payload : {};
+    const afterSnapshot = Array.isArray(payload.state_snapshot) ? payload.state_snapshot : [];
+    if (!afterSnapshot.length) return null;
+    if (event.event_type === 'block_add' && payload.block && payload.block.block_id) {
+        return {
+            before: afterSnapshot.filter(rect => rect && rect.block_id !== payload.block.block_id),
+            after: afterSnapshot
+        };
+    }
+    if (event.event_type === 'block_move' && payload.from && payload.from.block_id) {
+        return {
+            before: afterSnapshot.map(rect => {
+                if (!rect || rect.block_id !== payload.from.block_id) return rect;
+                return {
+                    ...rect,
+                    x: payload.from.x,
+                    y: payload.from.y,
+                    width: payload.from.width,
+                    height: payload.from.height,
+                    color: payload.from.color || rect.color
+                };
+            }),
+            after: afterSnapshot
+        };
+    }
+    return null;
+}
+
 function renderStudyAnalysisDetail(event) {
     const detailEl = document.getElementById('studyAnalysisDetail');
     if (!detailEl) return;
@@ -2421,6 +2450,7 @@ function renderStudyAnalysisDetail(event) {
     const payload = event.payload || {};
     const imageFiles = payload.image_files || {};
     const snapshot = Array.isArray(payload.state_snapshot) ? payload.state_snapshot : [];
+    const previewStates = buildStudyEventPreviewStates(event);
     const participantId = event.participant_id || (document.getElementById('studyAnalysisUserSelect') || {}).value || '';
     const compositionSrc = snapshot.length ? generateImageDataUrl(snapshot, 240) : '';
     const localTime = (function () {
@@ -2440,6 +2470,11 @@ function renderStudyAnalysisDetail(event) {
             renderStudyAnalysisImageCard('More', getStudyImageUrl(participantId, imageFiles.more), 'More feedback image')
         ];
         if (!imageFiles.less || !imageFiles.more) note = 'This is likely a legacy event logged before image filename fields were added, so less/more images cannot be resolved automatically.';
+    } else if (previewStates && previewStates.before && previewStates.after) {
+        cards = [
+            renderStudyAnalysisImageCard('Before', generateImageDataUrl(previewStates.before, 240), 'Previous composition snapshot'),
+            renderStudyAnalysisImageCard('After', generateImageDataUrl(previewStates.after, 240), 'Current composition snapshot')
+        ];
     } else if (event.event_type === 'chess_computer_move') {
         cards = [
             renderStudyAnalysisImageCard('Composition', compositionSrc, 'Composition snapshot'),
