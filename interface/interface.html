@@ -652,6 +652,11 @@
         .study-analysis-event.compact .study-analysis-event-meta { margin-bottom: 0; font-size: 10px; color: #999; }
         .study-analysis-event-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; min-width: 0; }
         .study-analysis-event.compact .study-analysis-event-head { margin-bottom: 0; flex-wrap: wrap; }
+        .study-analysis-event.compact.group-only { padding: 4px 10px; }
+        .study-analysis-event.compact.group-only .study-analysis-event-layout { display: block; }
+        .study-analysis-event.compact.group-only .study-analysis-event-meta,
+        .study-analysis-event.compact.group-only .study-analysis-event-body,
+        .study-analysis-event.compact.group-only .study-analysis-event-thumb { display: none; }
         .study-analysis-event-type { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 4px; }
         .study-analysis-event-head .study-analysis-event-type { margin-bottom: 0; }
         .study-analysis-event-type.highlight-feedback {
@@ -685,6 +690,7 @@
             line-height: 1.25;
             color: #777;
         }
+        .study-analysis-event.compact.minimal-body .study-analysis-event-body { display: none; }
         .study-analysis-event-thumb {
             flex: 0 0 52px;
             width: 52px;
@@ -2318,6 +2324,9 @@ function fillStudySelect(el, values, emptyLabel, selectedValue) {
 
 function describeStudyEvent(event) {
     const payload = event.payload || {};
+    if (event.event_type === 'study_session_started') {
+        return 'Session started';
+    }
     if (event.event_type === 'task_started' || event.event_type === 'task_completed') {
         return (payload.reason || 'task transition') + (payload.task_started_at ? ' · started ' + payload.task_started_at : '');
     }
@@ -2422,7 +2431,8 @@ function renderStudyAnalysisBars(events) {
 }
 
 function isCompactTimelineEventType(eventType) {
-    return eventType === 'task_started' ||
+    return eventType === 'study_session_started' ||
+        eventType === 'task_started' ||
         eventType === 'task_completed' ||
         eventType === 'mode_changed' ||
         eventType === 'criterion_changed';
@@ -2499,7 +2509,7 @@ function renderStudyAnalysisTimeline(timelineItems) {
     };
     const getTimelineHighlightClass = function (eventType) {
         if (eventType === 'feedback_returned') return 'highlight-feedback';
-        if (eventType === 'block_add' || eventType === 'block_move') return 'highlight-edit';
+        if (eventType === 'block_add' || eventType === 'block_move' || eventType === 'block_resize' || eventType === 'undo' || eventType === 'redo') return 'highlight-edit';
         return '';
     };
     const getTimelinePreviewSrc = function (event) {
@@ -2508,7 +2518,7 @@ function renderStudyAnalysisTimeline(timelineItems) {
             const snapshot = Array.isArray(payload.state_snapshot) ? payload.state_snapshot : [];
             return snapshot.length ? generateImageDataUrl(snapshot, 64) : '';
         }
-        if (event.event_type === 'block_add' || event.event_type === 'block_move') {
+        if (event.event_type === 'block_add' || event.event_type === 'block_move' || event.event_type === 'block_resize' || event.event_type === 'undo' || event.event_type === 'redo') {
             const previewStates = buildStudyEventPreviewStates(event);
             return previewStates && Array.isArray(previewStates.after) && previewStates.after.length
                 ? generateImageDataUrl(previewStates.after, 64)
@@ -2520,8 +2530,9 @@ function renderStudyAnalysisTimeline(timelineItems) {
         const itemId = getStudyAnalysisTimelineItemId(item);
         const highlightClass = item.is_group ? '' : getTimelineHighlightClass(item.event_type);
         const compactClass = item.is_group || isCompactTimelineEventType(item.event_type) ? ' compact' : '';
+        const densityClass = item.is_group ? ' group-only' : (isCompactTimelineEventType(item.event_type) ? ' minimal-body' : '');
         const selectedClass = itemId === studyAnalysisSelectedEventId ? ' selected' : '';
-        const eventClass = `study-analysis-event${compactClass}${selectedClass}${highlightClass ? ' ' + highlightClass : ''}`;
+        const eventClass = `study-analysis-event${compactClass}${densityClass}${selectedClass}${highlightClass ? ' ' + highlightClass : ''}`;
         const typeClass = `study-analysis-event-type${highlightClass ? ' ' + highlightClass : ''}`;
         const previewSrc = item.is_group ? '' : getTimelinePreviewSrc(item);
         const previewHtml = previewSrc ? `<img class="study-analysis-event-thumb" src="${previewSrc}" alt="${item.event_type} preview">` : '';
@@ -2584,6 +2595,50 @@ function buildStudyEventPreviewStates(event) {
             }),
             after: afterSnapshot
         };
+    }
+    if (event.event_type === 'block_resize' && payload.from && payload.from.block_id) {
+        return {
+            before: afterSnapshot.map(rect => {
+                if (!rect || rect.block_id !== payload.from.block_id) return rect;
+                return {
+                    ...rect,
+                    x: payload.from.x,
+                    y: payload.from.y,
+                    width: payload.from.width,
+                    height: payload.from.height,
+                    color: payload.from.color || rect.color
+                };
+            }),
+            after: afterSnapshot
+        };
+    }
+    if (event.event_type === 'undo') {
+        if (payload.action_type === 'block_add' && payload.removed_block && payload.removed_block.block_id) {
+            return {
+                before: afterSnapshot.concat([payload.removed_block]),
+                after: afterSnapshot
+            };
+        }
+        if (Array.isArray(payload.before_state_snapshot) && payload.before_state_snapshot.length) {
+            return {
+                before: payload.before_state_snapshot,
+                after: afterSnapshot
+            };
+        }
+    }
+    if (event.event_type === 'redo') {
+        if (payload.action_type === 'block_add' && payload.restored_block && payload.restored_block.block_id) {
+            return {
+                before: afterSnapshot.filter(rect => rect && rect.block_id !== payload.restored_block.block_id),
+                after: afterSnapshot
+            };
+        }
+        if (Array.isArray(payload.before_state_snapshot) && payload.before_state_snapshot.length) {
+            return {
+                before: payload.before_state_snapshot,
+                after: afterSnapshot
+            };
+        }
     }
     return null;
 }
@@ -2648,6 +2703,9 @@ function renderStudyAnalysisDetail(event) {
             renderStudyAnalysisImageCard('Before', generateImageDataUrl(previewStates.before, 240), 'Previous composition snapshot'),
             renderStudyAnalysisImageCard('After', generateImageDataUrl(previewStates.after, 240), 'Current composition snapshot')
         ];
+        if ((event.event_type === 'undo' || event.event_type === 'redo') && !Array.isArray(payload.before_state_snapshot) && payload.action_type !== 'block_add') {
+            note = 'Preview reconstruction is limited for this legacy undo/redo event because the earlier log format did not store a full previous snapshot.';
+        }
     } else if (event.event_type === 'chess_computer_move') {
         cards = [
             renderStudyAnalysisImageCard('Composition', compositionSrc, 'Composition snapshot'),
@@ -3862,16 +3920,22 @@ function clearRedoStack() {
 function undoLastAction() {
     if (undoStack.length > 0) {
         const entry = undoStack.pop();
+        const beforeStateSnapshot = snapshotRectangles(rectangles);
         applyHistoryEntry(entry, 'undo');
         redoStack.push(entry);
         advanceStudyState();
         renderRectangles();
-        const payload = { action_type: entry.type };
+        const payload = {
+            action_type: entry.type,
+            before_state_snapshot: beforeStateSnapshot
+        };
         if (entry.type === 'block_add' && entry.block) {
             payload.removed_block = entry.block;
             payload.block_id = entry.block.block_id;
         } else if ((entry.type === 'block_move' || entry.type === 'block_resize' || entry.type === 'block_recolor') && entry.before) {
             payload.block_id = entry.before.block_id;
+            payload.before = entry.before;
+            payload.after = entry.after || null;
         }
         logStudyEvent('undo', payload, { stateSnapshot: true });
     }
@@ -3881,16 +3945,22 @@ function undoLastAction() {
 function redoLastAction() {
     if (redoStack.length > 0) {
         const entry = redoStack.pop();
+        const beforeStateSnapshot = snapshotRectangles(rectangles);
         applyHistoryEntry(entry, 'redo');
         undoStack.push(entry);
         advanceStudyState();
         renderRectangles();
-        const payload = { action_type: entry.type };
+        const payload = {
+            action_type: entry.type,
+            before_state_snapshot: beforeStateSnapshot
+        };
         if (entry.type === 'block_add' && entry.block) {
             payload.restored_block = entry.block;
             payload.block_id = entry.block.block_id;
         } else if ((entry.type === 'block_move' || entry.type === 'block_resize' || entry.type === 'block_recolor') && entry.after) {
             payload.block_id = entry.after.block_id;
+            payload.before = entry.before || null;
+            payload.after = entry.after;
         }
         logStudyEvent('redo', payload, { stateSnapshot: true });
     }
