@@ -641,10 +641,19 @@
         .study-analysis-timeline { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
         .study-analysis-event { border: 1px solid #eee; border-radius: 8px; padding: 10px; background: #fafafa; cursor: pointer; }
         .study-analysis-event.selected { border-color: #999; background: #f0f0f0; }
+        .study-analysis-event.compact { padding: 6px 10px; background: #fcfcfc; }
         .study-analysis-event.highlight-feedback { border-color: #f2c66d; background: #fffaf0; }
         .study-analysis-event.highlight-feedback.selected { border-color: #d59a1a; background: #fff3d8; }
+        .study-analysis-event.highlight-edit { border-color: #b9d9ee; background: #f5fbff; }
+        .study-analysis-event.highlight-edit.selected { border-color: #5d9fc8; background: #eaf6ff; }
+        .study-analysis-event-layout { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .study-analysis-event-main { min-width: 0; flex: 1; }
         .study-analysis-event-meta { font-size: 11px; color: #777; margin-bottom: 4px; }
+        .study-analysis-event.compact .study-analysis-event-meta { margin-bottom: 0; font-size: 10px; color: #999; }
+        .study-analysis-event-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; min-width: 0; }
+        .study-analysis-event.compact .study-analysis-event-head { margin-bottom: 0; flex-wrap: wrap; }
         .study-analysis-event-type { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 4px; }
+        .study-analysis-event-head .study-analysis-event-type { margin-bottom: 0; }
         .study-analysis-event-type.highlight-feedback {
             display: inline-flex;
             align-items: center;
@@ -654,7 +663,37 @@
             background: #f6d58d;
             color: #6a4300;
         }
+        .study-analysis-event-type.highlight-edit {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #d6edf9;
+            color: #16506e;
+        }
+        .study-analysis-event.compact .study-analysis-event-type {
+            font-size: 12px;
+            font-weight: 500;
+            color: #666;
+        }
         .study-analysis-event-body { font-size: 12px; color: #555; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+        .study-analysis-event.compact .study-analysis-event-body {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.25;
+            color: #777;
+        }
+        .study-analysis-event-thumb {
+            flex: 0 0 52px;
+            width: 52px;
+            height: 52px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            object-fit: contain;
+            background: #fff;
+        }
         .study-analysis-detail-meta { font-size: 12px; color: #666; line-height: 1.5; margin-bottom: 10px; }
         #studyAnalysisBarChart,
         #studyAnalysisTimeline,
@@ -2371,14 +2410,38 @@ function renderStudyAnalysisTimeline(events) {
     };
     const getTimelineHighlightClass = function (eventType) {
         if (eventType === 'feedback_returned') return 'highlight-feedback';
+        if (eventType === 'block_add' || eventType === 'block_move') return 'highlight-edit';
+        return '';
+    };
+    const isCompactTimelineEvent = function (eventType) {
+        return eventType === 'task_started' ||
+            eventType === 'task_completed' ||
+            eventType === 'mode_changed' ||
+            eventType === 'criterion_changed';
+    };
+    const getTimelinePreviewSrc = function (event) {
+        const payload = event.payload || {};
+        if (event.event_type === 'feedback_returned') {
+            const snapshot = Array.isArray(payload.state_snapshot) ? payload.state_snapshot : [];
+            return snapshot.length ? generateImageDataUrl(snapshot, 64) : '';
+        }
+        if (event.event_type === 'block_add' || event.event_type === 'block_move') {
+            const previewStates = buildStudyEventPreviewStates(event);
+            return previewStates && Array.isArray(previewStates.after) && previewStates.after.length
+                ? generateImageDataUrl(previewStates.after, 64)
+                : '';
+        }
         return '';
     };
     el.innerHTML = `<div class="study-analysis-timeline">${items.map(event => {
         const highlightClass = getTimelineHighlightClass(event.event_type);
+        const compactClass = isCompactTimelineEvent(event.event_type) ? ' compact' : '';
         const selectedClass = event.event_id === studyAnalysisSelectedEventId ? ' selected' : '';
-        const eventClass = `study-analysis-event${selectedClass}${highlightClass ? ' ' + highlightClass : ''}`;
+        const eventClass = `study-analysis-event${compactClass}${selectedClass}${highlightClass ? ' ' + highlightClass : ''}`;
         const typeClass = `study-analysis-event-type${highlightClass ? ' ' + highlightClass : ''}`;
-        return `<div class="${eventClass}" data-event-id="${event.event_id || ''}"><div class="study-analysis-event-meta">${formatLocalTimeWithUtc(event.timestamp)} · ${(event.session_id || '').slice(0, 18)} · ${event.app_mode || ''} · ${event.criterion || ''}</div><div class="${typeClass}">${event.event_type}</div><div class="study-analysis-event-body">${describeStudyEvent(event)}</div></div>`;
+        const previewSrc = getTimelinePreviewSrc(event);
+        const previewHtml = previewSrc ? `<img class="study-analysis-event-thumb" src="${previewSrc}" alt="${event.event_type} preview">` : '';
+        return `<div class="${eventClass}" data-event-id="${event.event_id || ''}"><div class="study-analysis-event-layout"><div class="study-analysis-event-main"><div class="study-analysis-event-meta">${formatLocalTimeWithUtc(event.timestamp)} · ${(event.session_id || '').slice(0, 18)} · ${event.app_mode || ''} · ${event.criterion || ''}</div><div class="study-analysis-event-head"><div class="${typeClass}">${event.event_type}</div></div><div class="study-analysis-event-body">${describeStudyEvent(event)}</div></div>${previewHtml}</div></div>`;
     }).join('')}</div>`;
     const nextTimeline = el.querySelector('.study-analysis-timeline');
     if (nextTimeline) nextTimeline.scrollTop = studyAnalysisPreservedTimelineScrollTop || 0;
