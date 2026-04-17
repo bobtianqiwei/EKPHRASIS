@@ -9,12 +9,39 @@ import sys
 import subprocess
 import webbrowser
 import time
+from importlib import metadata
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+
+
+def get_installed_version(package_name):
+    """Return installed package version, or None when package is missing."""
+    try:
+        return metadata.version(package_name)
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def parse_major_version(version_text):
+    """Return the integer major version when possible."""
+    if not version_text:
+        return None
+    try:
+        return int(version_text.split(".", 1)[0])
+    except ValueError:
+        return None
+
 
 def check_python_version():
     """Check if Python version is compatible"""
-    if sys.version_info < (3, 7):
-        print("❌ Python 3.7 or higher is required")
+    if sys.version_info < (3, 9):
+        print("❌ Python 3.9 or higher is required")
+        print(f"Current version: {sys.version}")
+        return False
+    if sys.version_info >= (3, 13):
+        print("❌ Python 3.13 is not supported yet for this project")
+        print("Please use Python 3.9 to 3.12")
         print(f"Current version: {sys.version}")
         return False
     print(f"✓ Python version: {sys.version.split()[0]}")
@@ -22,6 +49,24 @@ def check_python_version():
 
 def check_ml_dependencies():
     """Check if ML dependencies are installed"""
+    tensorflow_version = get_installed_version("tensorflow")
+    numpy_version = get_installed_version("numpy")
+    flask_version = get_installed_version("flask")
+    flask_cors_version = get_installed_version("flask-cors")
+    pillow_version = get_installed_version("Pillow")
+
+    if not all([tensorflow_version, numpy_version, flask_version, flask_cors_version, pillow_version]):
+        print("❌ Some ML dependencies are missing")
+        return False
+
+    if parse_major_version(numpy_version) and parse_major_version(numpy_version) >= 2:
+        print(
+            "❌ Incompatible dependency combination detected: "
+            f"tensorflow {tensorflow_version} with numpy {numpy_version}"
+        )
+        print("   EKPHRASIS currently needs NumPy 1.x in this setup.")
+        return False
+
     try:
         import tensorflow
         import flask
@@ -30,30 +75,13 @@ def check_ml_dependencies():
         from PIL import Image
         print("✓ ML dependencies are installed")
         return True
-    except ImportError as e:
-        print(f"❌ Missing ML dependency: {e}")
-        return False
-
-def ensure_flask_cors():
-    """Install flask-cors if missing (common on fresh envs)."""
-    try:
-        import flask_cors
-        return True
-    except ImportError:
-        pass
-    print("Installing flask-cors...")
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "flask-cors"],
-                      check=True, capture_output=True, text=True)
-        print("✓ flask-cors installed")
-        return True
-    except subprocess.CalledProcessError:
-        print("❌ Could not install flask-cors. Run: pip install flask-cors")
+    except Exception as e:
+        print(f"❌ ML dependency check failed: {e}")
         return False
 
 def check_model_file():
     """Check if at least one vocabulary model exists in ml/models/"""
-    models_dir = Path("ml/models")
+    models_dir = PROJECT_ROOT / "ml" / "models"
     if not models_dir.exists():
         print("⚠️  ml/models/ not found")
         return False
@@ -67,8 +95,33 @@ def install_dependencies():
     """Install ML dependencies"""
     print("Installing ML dependencies...")
     try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "-r", "ml/requirements.txt"], 
-                      check=True, capture_output=True)
+        flask_version = get_installed_version("flask")
+        flask_cors_version = get_installed_version("flask-cors")
+        pillow_version = get_installed_version("Pillow")
+        tensorflow_version = get_installed_version("tensorflow")
+        numpy_version = get_installed_version("numpy")
+
+        # Keep the fix as small as possible when only NumPy is incompatible.
+        if (
+            flask_version
+            and flask_cors_version
+            and pillow_version
+            and tensorflow_version
+            and parse_major_version(numpy_version) is not None
+            and parse_major_version(numpy_version) >= 2
+        ):
+            target_numpy = "1.26.4" if sys.version_info >= (3, 12) else "1.24.3"
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", f"numpy=={target_numpy}"],
+                check=True,
+                cwd=str(PROJECT_ROOT),
+            )
+        else:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", str(PROJECT_ROOT / "ml" / "requirements.txt")],
+                check=True,
+                cwd=str(PROJECT_ROOT),
+            )
         print("✓ Dependencies installed successfully")
         return True
     except subprocess.CalledProcessError as e:
@@ -80,8 +133,12 @@ def train_model():
     print("Training the ML model (visual_balance)...")
     print("This may take several minutes...")
     try:
-        result = subprocess.run([sys.executable, "train_and_save_model.py", "visual_balance"],
-                              cwd="ml", check=True, capture_output=True, text=True)
+        subprocess.run(
+            [sys.executable, "train_and_save_model.py", "visual_balance"],
+            cwd=str(PROJECT_ROOT / "ml"),
+            check=True,
+            text=True,
+        )
         print("✓ Model training completed")
         return True
     except subprocess.CalledProcessError as e:
@@ -94,8 +151,12 @@ def start_server():
     print("Starting ML server...")
     try:
         # Start server in background
-        server_process = subprocess.Popen([sys.executable, "start_server.py"],
-                                        cwd="ml", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        server_process = subprocess.Popen(
+            [sys.executable, "start_server.py"],
+            cwd=str(PROJECT_ROOT / "ml"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         
         # Wait a bit for server to start
         time.sleep(3)
@@ -127,14 +188,11 @@ def main():
     if not check_python_version():
         sys.exit(1)
     
-    # Check ML dependencies (install flask-cors if only that is missing)
+    # Check ML dependencies
     if not check_ml_dependencies():
-        if ensure_flask_cors() and check_ml_dependencies():
-            pass
-        else:
-            print("\nInstalling dependencies...")
-            if not install_dependencies():
-                sys.exit(1)
+        print("\nInstalling dependencies...")
+        if not install_dependencies():
+            sys.exit(1)
     
     # Check model file
     if not check_model_file():

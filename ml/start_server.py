@@ -28,8 +28,8 @@ def check_dependencies():
     for package in required_packages:
         try:
             __import__(package)
-        except ImportError:
-            missing_packages.append(package)
+        except Exception as e:
+            missing_packages.append(f"{package} ({e})")
     
     if missing_packages:
         print(f"Missing packages: {', '.join(missing_packages)}")
