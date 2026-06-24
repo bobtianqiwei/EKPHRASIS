@@ -35,6 +35,3 @@ env/
 # Env files (secrets)
 .env
 .env.local
-
-# Study recordings (per-user data)
-dataset/study/
