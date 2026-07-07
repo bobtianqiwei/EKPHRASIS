@@ -3017,7 +3017,7 @@ function showStatusToast(message) {
     }, 10000);
 }
 
-const MODEL_REQUEST_TIMEOUT_MS = 15000;
+const MODEL_REQUEST_TIMEOUT_MS = 60000;
 const MODEL_REQUEST_RETRY_DELAY_MS = 4000;
 
 function sleep(ms) {
@@ -3027,7 +3027,7 @@ function sleep(ms) {
 async function fetchModelJson(path, payload, options) {
     const settings = options || {};
     const timeoutMs = settings.timeoutMs || MODEL_REQUEST_TIMEOUT_MS;
-    const retryCount = settings.retryCount == null ? 1 : settings.retryCount;
+    const retryCount = settings.retryCount == null ? 0 : settings.retryCount;
 
     for (let attempt = 0; attempt <= retryCount; attempt++) {
         const controller = new AbortController();
@@ -3052,7 +3052,7 @@ async function fetchModelJson(path, payload, options) {
                 continue;
             }
             if (error.name === 'AbortError') {
-                throw new Error('Model request timed out after 15 seconds. The ML server is restarting automatically. Please try again in a few seconds.');
+                throw new Error('Model request timed out after 60 seconds. Please try again.');
             }
             throw error;
         } finally {

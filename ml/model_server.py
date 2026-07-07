@@ -74,27 +74,67 @@ def predict_image_from_base64(base64_string, model_obj):
     except Exception as e:
         return {"error": str(e)}
 
+def predict_images_from_base64(base64_strings, model_obj):
+    """Predict multiple images in one model call and preserve their original indices."""
+    valid_images = []
+    valid_indices = []
+
+    for index, base64_string in enumerate(base64_strings):
+        try:
+            img = _parse_image_from_data_url(base64_string)
+            valid_images.append(np.asarray(img, dtype=np.float32) / 255.0)
+            valid_indices.append(index)
+        except Exception:
+            continue
+
+    if not valid_images:
+        return []
+
+    image_batch = np.stack(valid_images, axis=0)
+    with prediction_lock:
+        predictions = model_obj.predict(image_batch, batch_size=32, verbose=0)
+
+    results = []
+    for index, prediction in zip(valid_indices, predictions):
+        confidence = float(prediction[0])
+        results.append({
+            "index": index,
+            "confidence": confidence,
+            "class": "class_1" if confidence >= 0.5 else "class_0",
+            "score": confidence if confidence >= 0.5 else 1 - confidence
+        })
+    return results
+
 def run_health_probe():
     """Run one small real prediction to verify that inference still works."""
     if not models:
         return {"status": "unhealthy", "model_loaded": False, "error": "No model loaded"}, 503
     criterion_id = next(iter(models.keys()))
-    try:
-        with prediction_lock:
-            prediction = models[criterion_id].predict(health_probe_array, verbose=0)
+    if not prediction_lock.acquire(blocking=False):
         return {
             "status": "ready",
             "model_loaded": True,
             "criterion": criterion_id,
-            "confidence": float(prediction[0][0])
+            "inference_busy": True
         }, 200
-    except Exception as e:
-        return {
-            "status": "unhealthy",
-            "model_loaded": True,
-            "criterion": criterion_id,
-            "error": str(e)
-        }, 503
+    try:
+        try:
+            prediction = models[criterion_id].predict(health_probe_array, verbose=0)
+            return {
+                "status": "ready",
+                "model_loaded": True,
+                "criterion": criterion_id,
+                "confidence": float(prediction[0][0])
+            }, 200
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "model_loaded": True,
+                "criterion": criterion_id,
+                "error": str(e)
+            }, 503
+    finally:
+        prediction_lock.release()
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -412,13 +452,7 @@ def predict_multiple():
             return jsonify({"error": f"Unknown criterion or model not loaded: {criterion}"}), 400
         
         images = data['images']
-        results = []
-        
-        for i, img_base64 in enumerate(images):
-            result = predict_image_from_base64(img_base64, model_obj)
-            if 'error' not in result:
-                result['index'] = i
-                results.append(result)
+        results = predict_images_from_base64(images, model_obj)
         
         if not results:
             return jsonify({"error": "No valid predictions"}), 400
