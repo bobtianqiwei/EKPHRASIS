@@ -189,9 +189,7 @@
             max-height: 100%;
             overflow: hidden;
         }
-        .content-wrapper.visual-aids-layout #mainContent {
-            margin-top: 32px; /* Add top spacing so Visual Aids content sits vertically more centered */
-        }
+        .container.study-research-active { padding-bottom: 112px; }
         .content-wrapper.test-model-active {
             width: 100%;
             max-width: 100%;
@@ -229,6 +227,7 @@
         .prompt {
             width: 600px;
             max-width: 90vw;
+            min-height: 72px;
             text-align: center;
             margin-bottom: 20px;
             line-height: 1.5;
@@ -646,6 +645,8 @@
         .study-analysis-event.highlight-feedback.selected { border-color: #d59a1a; background: #fff3d8; }
         .study-analysis-event.highlight-edit { border-color: #b9d9ee; background: #f5fbff; }
         .study-analysis-event.highlight-edit.selected { border-color: #5d9fc8; background: #eaf6ff; }
+        .study-analysis-event.highlight-rating { border-color: #b8d8bd; background: #f4fbf5; }
+        .study-analysis-event.highlight-rating.selected { border-color: #5f9d68; background: #e9f6eb; }
         .study-analysis-event-layout { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
         .study-analysis-event-main { min-width: 0; flex: 1; }
         .study-analysis-event-meta { font-size: 11px; color: #777; margin-bottom: 4px; }
@@ -676,6 +677,15 @@
             border-radius: 999px;
             background: #d6edf9;
             color: #16506e;
+        }
+        .study-analysis-event-type.highlight-rating {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #d7ecd9;
+            color: #245b2c;
         }
         .study-analysis-event.compact .study-analysis-event-type {
             font-size: 12px;
@@ -736,6 +746,15 @@
             color: #777;
             line-height: 1.5;
         }
+        .study-analysis-rating-detail {
+            padding: 16px;
+            border: 1px solid #b8d8bd;
+            border-radius: 10px;
+            background: #f4fbf5;
+        }
+        .study-analysis-rating-score { color: #245b2c; font-size: 30px; font-weight: 700; }
+        .study-analysis-rating-question { margin-top: 8px; color: #333; font-size: 13px; line-height: 1.5; }
+        .study-analysis-rating-context { margin-top: 8px; color: #777; font-size: 11px; }
         .study-analysis-group-list {
             display: flex;
             flex-direction: column;
@@ -890,6 +909,287 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+        .study-research-controls {
+            display: none;
+            position: fixed;
+            left: 50%;
+            right: auto;
+            bottom: 62px;
+            z-index: 145;
+            width: max-content;
+            max-width: calc(100vw - 32px);
+            margin: 0;
+            padding: 8px;
+            gap: 8px;
+            align-items: center;
+            overflow-x: auto;
+            border: 1px solid #d8d8d8;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.97);
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+            transform: translateX(-50%);
+            box-sizing: border-box;
+        }
+        .study-research-controls.show {
+            display: flex;
+            justify-content: flex-start;
+        }
+        .study-context-controls {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            padding-left: 4px;
+            background: rgba(255, 255, 255, 0.98);
+        }
+        [data-study-group="task"] {
+            justify-content: flex-start;
+            padding-right: 0;
+            border-right: none;
+        }
+        .study-context-controls,
+        .study-stage-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex: 0 0 auto;
+            padding-right: 8px;
+            border-right: 1px solid #e5e5e5;
+        }
+        .study-stage-group:last-child { border-right: none; padding-right: 0; }
+        .study-stage-group-label {
+            padding: 0 3px;
+            color: #888;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .study-context-btn,
+        .study-stage-btn {
+            min-height: 27px;
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            color: #333;
+            font: inherit;
+            font-size: 11px;
+            white-space: nowrap;
+            box-sizing: border-box;
+        }
+        .study-context-btn,
+        .study-stage-btn { cursor: pointer; }
+        .study-context-btn:hover,
+        .study-stage-btn:hover { background: #f3f3f3; }
+        .study-context-btn.active,
+        .study-stage-btn.active {
+            border-color: #111;
+            background: #111;
+            color: #fff;
+        }
+        .study-card-overlay {
+            display: none;
+            position: fixed;
+            inset: 0 0 55px;
+            z-index: 190;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: transparent;
+            box-sizing: border-box;
+        }
+        .study-card-overlay.show { display: flex; }
+        .study-card {
+            --study-card-padding: 28px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            width: min(640px, 92vw);
+            max-height: min(660px, calc(100vh - 110px));
+            padding: var(--study-card-padding);
+            overflow: hidden;
+            border: 1px solid #d7d7d7;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.16);
+            transform: translate(var(--study-card-x, 0px), var(--study-card-y, 0px));
+            box-sizing: border-box;
+        }
+        .study-card.dragging { user-select: none; }
+        .study-card-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            background: #f0f0f0;
+            color: #444;
+            font-size: 20px;
+            line-height: 30px;
+            cursor: pointer;
+            z-index: 2;
+        }
+        .study-card-close:hover { background: #e3e3e3; color: #111; }
+        .study-card-drag-handle {
+            margin: calc(var(--study-card-padding) * -1) calc(var(--study-card-padding) * -1) 0;
+            padding: var(--study-card-padding) 70px 18px var(--study-card-padding);
+            cursor: grab;
+            touch-action: none;
+        }
+        .study-card-title {
+            margin: 0;
+            color: #111;
+            font-size: 22px;
+            line-height: 1.2;
+        }
+        .study-card.dragging .study-card-drag-handle { cursor: grabbing; }
+        .study-card-content {
+            flex: 1;
+            min-height: 140px;
+            overflow-y: auto;
+            color: #222;
+        }
+        .study-card-question,
+        .study-card-statement {
+            margin: 0;
+            font-size: 20px;
+            line-height: 1.48;
+            white-space: pre-line;
+        }
+        .study-card-statement { font-size: 18px; }
+        .study-card-cue {
+            margin-top: 14px;
+            color: #777;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .study-rating-scale {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(42px, 1fr));
+            gap: 8px;
+            margin-top: 28px;
+        }
+        .study-rating-btn {
+            aspect-ratio: 1;
+            padding: 0;
+            border: 1px solid #bbb;
+            border-radius: 10px;
+            background: #fff;
+            color: #222;
+            font-size: 17px;
+            cursor: pointer;
+        }
+        .study-rating-btn:hover { border-color: #111; }
+        .study-rating-btn.selected { border-color: #111; background: #111; color: #fff; }
+        .study-rating-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 7px;
+            color: #888;
+            font-size: 10px;
+        }
+        .study-feedback-options {
+            display: grid;
+            gap: 8px;
+        }
+        .study-feedback-option {
+            display: grid;
+            grid-template-columns: 40px 1fr;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: #fff;
+            color: #222;
+            text-align: left;
+            cursor: pointer;
+        }
+        .study-feedback-option:hover { border-color: #777; background: #fafafa; }
+        .study-feedback-code { font-weight: 700; }
+        .study-selected-feedback {
+            padding: 22px;
+            border: 1px solid #d9d9d9;
+            border-radius: 14px;
+            background: #fafafa;
+        }
+        .study-selected-feedback-code {
+            margin-bottom: 10px;
+            color: #777;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+        .study-selected-feedback-text { font-size: 19px; line-height: 1.5; }
+        .study-feedback-reselect {
+            margin-top: 14px;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            color: #555;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .study-note-form { display: grid; gap: 10px; }
+        .study-note-form select,
+        .study-note-form textarea {
+            width: 100%;
+            padding: 9px 10px;
+            border: 1px solid #ccc;
+            border-radius: 9px;
+            background: #fff;
+            color: #222;
+            font: inherit;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+        .study-note-form textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
+        .study-note-save {
+            justify-self: end;
+            padding: 8px 14px;
+            border: 1px solid #111;
+            border-radius: 8px;
+            background: #111;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .study-note-save:disabled { opacity: 0.4; cursor: default; }
+        .study-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+        }
+        .study-card-progress { color: #888; font-size: 11px; }
+        .study-card-nav { display: flex; gap: 8px; }
+        .study-card-nav button {
+            min-width: 72px;
+            padding: 7px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            color: #333;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .study-card-nav button:last-child { border-color: #111; background: #111; color: #fff; }
+        .study-card-nav button:disabled { opacity: 0.35; cursor: default; }
+        @media (max-width: 720px) {
+            .study-card { --study-card-padding: 22px; }
+            .study-card-question,
+            .study-card-statement { font-size: 17px; }
+            .study-rating-scale { gap: 4px; }
+        }
         .loading {
             display: none;
             text-align: center;
@@ -962,6 +1262,22 @@
                 </p>
                 <button type="button" class="about-modal-close" id="aboutModalClose" title="Close" aria-label="Close">×</button>
             </div>
+        </div>
+        <div id="studyCardOverlay" class="study-card-overlay" aria-hidden="true">
+            <section class="study-card" role="dialog" aria-modal="true" aria-labelledby="studyCardTitle">
+                <button type="button" id="studyCardCloseBtn" class="study-card-close" aria-label="Close study card">×</button>
+                <div class="study-card-drag-handle">
+                    <h2 id="studyCardTitle" class="study-card-title"></h2>
+                </div>
+                <div id="studyCardContent" class="study-card-content"></div>
+                <footer class="study-card-footer">
+                    <span id="studyCardProgress" class="study-card-progress"></span>
+                    <div class="study-card-nav">
+                        <button type="button" id="studyCardBackBtn">Back</button>
+                        <button type="button" id="studyCardNextBtn">Next</button>
+                    </div>
+                </footer>
+            </section>
         </div>
         <div class="container">
         <div class="content-wrapper">
@@ -1144,6 +1460,23 @@
             </div>
         </div>
         </div>
+        <nav id="studyResearchControls" class="study-research-controls" aria-label="Study moderator controls">
+            <div class="study-context-controls">
+                <span class="study-stage-group-label">Context</span>
+                <button type="button" class="study-context-btn" data-study-surface="text">Text</button>
+                <button type="button" class="study-context-btn active" data-study-surface="visual">Visual</button>
+            </div>
+            <div class="study-stage-group" data-study-group="task">
+                <span class="study-stage-group-label">Task</span>
+                <button type="button" class="study-stage-btn" data-study-stage="pre_task">Start task</button>
+                <button type="button" class="study-stage-btn" data-study-stage="before_feedback">Before feedback</button>
+                <button type="button" class="study-stage-btn" data-study-stage="feedback_1">Feedback 1</button>
+                <button type="button" class="study-stage-btn" data-study-stage="after_revision_1">After revision 1</button>
+                <button type="button" class="study-stage-btn" data-study-stage="feedback_2">Feedback 2</button>
+                <button type="button" class="study-stage-btn" data-study-stage="after_revision_2">After revision 2</button>
+                <button type="button" class="study-stage-btn" data-study-stage="post_task">Post-task</button>
+            </div>
+        </nav>
         <header class="topbar bottombar">
             <div class="topbar-left">
                 <button type="button" class="topbar-logo" id="ekphrasisAboutBtn" title="About EKPHRASIS"><img src="logo.png" alt="EKPHRASIS" class="topbar-logo-img"></button>
@@ -1236,6 +1569,72 @@ let CRITERIA_LIST = [
     { id: 'visual_balance', name: 'Visual Balance' },
     { id: 'rhythm', name: 'Rhythm' },
     { id: 'emphasis', name: 'Emphasis' }
+];
+
+const STUDY_CRITERIA_LIST = [
+    { id: 'visual_balance', name: 'Visual Balance' },
+    { id: 'visual_hierarchy', name: 'Visual Hierarchy' },
+    { id: 'rhythm', name: 'Visual Rhythm' }
+];
+
+const STUDY_TERM_CONTENT = {
+    visual_balance: {
+        name: 'Visual Balance',
+        definition: 'Visual balance refers to how visual weight is distributed across a composition.\n\nVisual weight can come from properties such as size, color, contrast, density, texture, position, or complexity.\n\nA composition feels balanced when its visual weight feels intentionally distributed rather than unintentionally heavy or unstable in one area.\n\nBalance does not require symmetry. Different visual elements can counterbalance one another through their relative weight and position.'
+    },
+    visual_hierarchy: {
+        name: 'Visual Hierarchy',
+        definition: 'Visual hierarchy refers to the order in which a viewer notices and understands elements in a composition.\n\nDesigners can create hierarchy through properties such as size, contrast, color, spacing, alignment, position, and grouping.\n\nA clear hierarchy establishes different levels of visual importance, helping the viewer understand which elements are primary, secondary, and supporting.'
+    },
+    rhythm: {
+        name: 'Visual Rhythm',
+        definition: 'Visual rhythm refers to a sense of visual movement created through repetition and variation.\n\nDesigners can create rhythm through repeated or varied properties such as shape, color, line, spacing, texture, size, or direction.\n\nRepetition can create continuity, while controlled variation can create movement, change, and emphasis within the composition.'
+    }
+};
+
+const STUDY_TEXT_FEEDBACK_BANK = {
+    visual_balance: [
+        { code: 'B1', title: 'Uneven visual weight', useWhen: 'Use when one side, corner, or region feels too heavy.', feedback: 'One area carries too much visual weight. Try redistributing size, contrast, density, or spacing so the composition feels more stable.' },
+        { code: 'B2', title: 'Crowding', useWhen: 'Use when several elements are crowded in one region.', feedback: 'Several elements are crowded in one region. Try giving them more breathing room or spreading them more deliberately.' },
+        { code: 'B3', title: 'Unintentional empty space', useWhen: 'Use when negative space feels accidental or unresolved.', feedback: 'The empty space does not yet feel intentional. Try using it clearly as breathing room or balancing it with stronger placement elsewhere.' },
+        { code: 'B4', title: 'Unclear focal area', useWhen: 'Use when the composition feels floating, loose, or ungrounded.', feedback: 'The composition does not have a clear area that holds the viewer’s attention. Try making one part feel stronger through placement, alignment, scale, or contrast.' },
+        { code: 'B5', title: 'Static or overly symmetrical balance', useWhen: 'Use when the design is balanced but too stiff, centered, or predictable.', feedback: 'The design feels stable, but also static. Try creating a more dynamic balance by shifting one element and compensating with scale, spacing, or contrast.' }
+    ],
+    visual_hierarchy: [
+        { code: 'H1', title: 'Unclear priority', useWhen: 'Use when the viewer does not know what to look at first.', feedback: 'The composition does not yet have a clear first point of attention. Try making the most important element more dominant through size, contrast, placement, or spacing.' },
+        { code: 'H2', title: 'Competing focal points', useWhen: 'Use when several elements demand equal attention.', feedback: 'Several elements compete for attention. Try choosing one primary element and making the others visually secondary.' },
+        { code: 'H3', title: 'Weak contrast between levels', useWhen: 'Use when primary, secondary, and supporting elements look too similar.', feedback: 'The hierarchy is too subtle. Try creating clearer differences between levels through size, value, color, spacing, or visual weight.' },
+        { code: 'H4', title: 'Weak grouping', useWhen: 'Use when related elements do not visually belong together.', feedback: 'Related elements do not yet read as a group. Try using proximity, alignment, or similarity to show which elements belong together.' },
+        { code: 'H5', title: 'Unclear reading path', useWhen: 'Use when the viewer can see the elements but does not know the order.', feedback: 'The viewing order is unclear. Try arranging elements so the eye moves from the most important information to supporting information in a deliberate sequence.' }
+    ],
+    rhythm: [
+        { code: 'R1', title: 'No clear repetition', useWhen: 'Use when there is no visible repeated element.', feedback: 'The design does not yet have a clear repeated visual element. Try repeating a shape, color, line, size, direction, or spacing pattern to create rhythm.' },
+        { code: 'R2', title: 'Irregular pattern', useWhen: 'Use when repeated elements exist but feel random.', feedback: 'There are repeated elements, but the pattern feels unintentionally irregular. Try making the spacing, direction, or variation more deliberate.' },
+        { code: 'R3', title: 'Monotonous rhythm', useWhen: 'Use when repetition is clear but too flat.', feedback: 'The rhythm is clear, but it feels flat. Try adding controlled variation in scale, spacing, color, or direction while keeping the pattern recognizable.' },
+        { code: 'R4', title: 'Chaotic rhythm', useWhen: 'Use when too many repeated features compete.', feedback: 'The composition has many repeated elements, but they compete with each other. Try simplifying the rhythm around one dominant repeated feature.' },
+        { code: 'R5', title: 'Weak visual flow', useWhen: 'Use when repetition does not guide the viewer’s eye.', feedback: 'The repetition does not yet guide the eye through the design. Try arranging repeated elements along a clearer path or directional flow.' }
+    ]
+};
+
+const studyProtocolState = {
+    activeTask: 'task_1',
+    task1Order: 'text_visual',
+    taskTerms: {
+        task_1: 'visual_balance',
+        task_2: 'visual_hierarchy',
+        transfer: 'visual_balance'
+    },
+    selectedFeedback: {},
+    ratings: {},
+    activeStage: null,
+    activeItemIndex: 0,
+    normalCriterion: 'visual_balance',
+    criterionContextActive: false
+};
+
+const STUDY_STAGE_CHAINS = [
+    ['pre_task', 'definition', 'initial_composition'],
+    ['post_task', 'compare_feedback']
 ];
 
 const canvas = document.getElementById('drawingCanvas');
@@ -1344,6 +1743,8 @@ function updateStudyUI() {
         else explanationInput.placeholder = 'Briefly explain your composition strategy...';
         if (!showExplanation) explanationInput.value = '';
     }
+    syncStudyCriterionOptions();
+    updateStudyResearchControls();
 }
 if (studyModeSelect) {
     studyModeSelect.addEventListener('change', updateStudyUI);
@@ -1409,6 +1810,10 @@ document.getElementById('statusModalResetBtn').addEventListener('click', functio
     currentStudySessionUser = null;
     activeStudyTask = null;
     currentStudyStateId = 'state_init';
+    studyProtocolState.activeTask = 'task_1';
+    studyProtocolState.taskTerms = { task_1: 'visual_balance', task_2: 'visual_hierarchy', transfer: 'visual_balance' };
+    studyProtocolState.selectedFeedback = {};
+    studyProtocolState.ratings = {};
     selfExplanationEnabled = false;
     if (selfExplanationEnabledCheckbox) selfExplanationEnabledCheckbox.checked = false;
     if (studyModeSelect) studyModeSelect.value = 'demo';
@@ -1881,6 +2286,723 @@ if (studyExplanationInputEl) {
 }
 const studyExplanationSubmitBtn = document.getElementById('studyExplanationSubmitBtn');
 if (studyExplanationSubmitBtn) studyExplanationSubmitBtn.addEventListener('click', submitStudyExplanation);
+
+function studyStatement(id, text, cue) {
+    return { id: id, type: 'statement', text: text, cue: cue || '' };
+}
+
+function studyQuestion(id, text) {
+    return { id: id, type: 'question', text: text };
+}
+
+function studyRating(id, text, lowLabel, highLabel) {
+    return {
+        id: id,
+        type: 'rating',
+        text: text,
+        lowLabel: lowLabel || '1 — Not at all',
+        highLabel: highLabel || '7 — Very much'
+    };
+}
+
+function getCurrentStudyTermId() {
+    const selected = criterionSelect ? criterionSelect.value : '';
+    if (STUDY_TERM_CONTENT[selected]) return selected;
+    return studyProtocolState.taskTerms[studyProtocolState.activeTask] || 'visual_balance';
+}
+
+function getCurrentStudyTerm() {
+    return STUDY_TERM_CONTENT[getCurrentStudyTermId()] || STUDY_TERM_CONTENT.visual_balance;
+}
+
+function getStudyTaskLabel(taskId) {
+    if (taskId === 'task_2') return 'Task 2';
+    if (taskId === 'transfer') return 'Transfer';
+    return 'Task 1';
+}
+
+function getStudyFeedbackType(round) {
+    const task = studyProtocolState.activeTask;
+    const task1First = studyProtocolState.task1Order === 'text_visual' ? 'text' : 'visual';
+    const first = task === 'task_2' ? (task1First === 'text' ? 'visual' : 'text') : task1First;
+    return round === 1 ? first : (first === 'text' ? 'visual' : 'text');
+}
+
+function getStudyFeedbackItems(round) {
+    const termName = getCurrentStudyTerm().name;
+    const feedbackType = getStudyFeedbackType(round);
+    const isSecond = round === 2;
+    const items = [];
+    if (feedbackType === 'text') {
+        items.push(studyStatement('text_intro', isSecond
+            ? 'You will now receive written feedback about your revised composition. Please read it and think aloud.'
+            : 'You will now receive a short piece of written feedback. Please read it and think aloud about what it means for your composition.'));
+        items.push({ id: 'text_feedback_bank', type: 'feedback_bank' });
+        items.push(studyQuestion('text_pointing_to', 'What do you think this feedback is pointing to?'));
+        items.push(studyQuestion('text_change', 'What, if anything, does it make you consider changing?'));
+    } else {
+        items.push(studyStatement('visual_intro', isSecond
+            ? 'You will now receive comparative visual feedback about your revised composition. Please look at it and think aloud.'
+            : 'You will now receive comparative visual feedback related to your composition and ' + termName + '. Please look at the comparison and think aloud about what you notice.'));
+        items.push(studyQuestion('visual_differences', 'What differences do you notice?'));
+        items.push(studyQuestion('visual_term', 'What do those differences suggest to you about ' + termName + '?'));
+        items.push(studyQuestion('visual_change', 'What, if anything, does this make you consider changing?'));
+    }
+    if (isSecond) {
+        items.push(studyQuestion('feedback_addition', 'Does this feedback add anything that the previous feedback did not?'));
+    }
+    items.push(studyRating('feedback_understanding', 'How helpful was it for understanding ' + termName + '?'));
+    items.push(studyRating('feedback_next_step', 'How helpful was it for deciding what to do next?'));
+    items.push(studyRating('feedback_trust', 'How much did you trust the feedback?'));
+    items.push(studyStatement('revision_prompt', isSecond
+        ? 'You may now revise your composition again. Please continue thinking aloud.'
+        : 'You may now revise your composition. Please continue thinking aloud.', 'Allow about 1–2 minutes.'));
+    return items;
+}
+
+function getStudyStage(stageId) {
+    const termName = getCurrentStudyTerm().name;
+    const stages = {
+        introduction: {
+            title: 'Introduction',
+            items: [
+                studyStatement('intro_welcome', 'Hi, thank you for joining the study today.\n\nWe are studying how different forms of feedback may support learning graphic design vocabulary. During the study, you will create simple visual compositions and revise them based on different kinds of feedback.'),
+                studyStatement('intro_scope', 'We are interested in how you understand the design concepts and how you make decisions while designing. We are not evaluating your artistic ability, and there is no single correct composition.'),
+                studyStatement('intro_think_aloud', 'During the design tasks, please think aloud. Tell me what you notice, what you are thinking about, and why you make particular changes.'),
+                studyStatement('intro_remote', 'I will share my computer screen and give you remote control through Zoom. You do not need to install anything.'),
+                studyQuestion('intro_questions', 'Do you have any questions before we begin?')
+            ]
+        },
+        practice: {
+            title: 'Interface Practice',
+            items: [
+                studyStatement('practice_actions', 'Please try:\n\nMoving a shape\nResizing a shape\nChanging its color\nDuplicating a shape\nDeleting a shape\nUndoing an action'),
+                studyQuestion('practice_controls', 'Do the controls feel okay?'),
+                studyQuestion('practice_questions', 'Do you have any questions about using the interface?')
+            ]
+        },
+        pre_task: {
+            title: 'Pre-task',
+            items: [
+                studyQuestion('pre_understanding', 'Before I explain the term: In your own words, what does “' + termName + '” mean in graphic design, and what visual decisions might a designer make to create it?'),
+                studyRating('pre_confidence', 'How confident are you in your current understanding of ' + termName + ', from 1 to 7?', '1 — Not confident', '7 — Very confident')
+            ]
+        },
+        definition: {
+            title: termName + ' Definition',
+            items: [studyStatement('definition', getCurrentStudyTerm().definition)]
+        },
+        initial_composition: {
+            title: 'Initial Composition',
+            items: [studyStatement('initial_prompt', 'Using the provided visual elements, please create a composition that demonstrates ' + termName + '.\n\nYou may move, resize, rotate, recolor, duplicate, or delete elements.\n\nYou do not need to create a realistic poster or communicate a specific message. Focus on the visual relationships among the elements.\n\nPlease think aloud while you work. You may begin.', 'Allow about 2–3 minutes. Do not provide feedback during this baseline composition.')]
+        },
+        before_feedback: {
+            title: 'Before Feedback',
+            items: [
+                studyQuestion('before_works', 'What do you think currently works well for ' + termName + '?'),
+                studyQuestion('before_change', 'What, if anything, would you consider changing next?'),
+                studyRating('before_clarity', 'How clear are you about what to change next, from 1 to 7?', '1 — Not clear', '7 — Very clear'),
+                studyRating('before_confidence', 'How confident are you that your current composition demonstrates ' + termName + ', from 1 to 7?', '1 — Not confident', '7 — Very confident'),
+                studyQuestion('before_uncertain', 'Is there anything you currently feel uncertain or stuck about?')
+            ]
+        },
+        feedback_1: { title: 'Feedback 1 · ' + (getStudyFeedbackType(1) === 'text' ? 'Text' : 'Visual'), items: getStudyFeedbackItems(1) },
+        after_revision_1: {
+            title: 'After Revision 1',
+            items: [
+                studyQuestion('revision_1_change', 'What did you change, and why?'),
+                studyRating('revision_1_confidence', 'How confident are you that your composition now demonstrates ' + termName + ', from 1 to 7?', '1 — Not confident', '7 — Very confident')
+            ]
+        },
+        feedback_2: { title: 'Feedback 2 · ' + (getStudyFeedbackType(2) === 'text' ? 'Text' : 'Visual'), items: getStudyFeedbackItems(2) },
+        after_revision_2: {
+            title: 'After Revision 2',
+            items: [
+                studyQuestion('revision_2_change', 'What was the most important change you made?'),
+                studyQuestion('revision_2_effect', 'How did that change affect ' + termName + '?')
+            ]
+        },
+        post_task: {
+            title: 'Post-task',
+            items: [
+                studyQuestion('post_definition', 'Now, in your own words, what does ' + termName + ' mean?'),
+                studyQuestion('post_example', 'Please point to one part of your final composition and explain how it demonstrates ' + termName + '.'),
+                studyQuestion('post_future', 'If you were creating another composition for ' + termName + ', what would you pay attention to?'),
+                studyRating('post_confidence', 'How confident are you in your understanding of ' + termName + ' now, from 1 to 7?', '1 — Not confident', '7 — Very confident')
+            ]
+        },
+        compare_feedback: {
+            title: 'Compare the Feedback',
+            items: [
+                studyQuestion('compare_difference', 'How were the written feedback and the visual feedback different for you?'),
+                studyQuestion('compare_understanding', 'Did one help you understand ' + termName + ' better? Why?'),
+                studyQuestion('compare_action', 'Did one make it easier to decide what to change? Why?'),
+                studyQuestion('compare_unique', 'Did either type of feedback show you something the other did not?'),
+                studyQuestion('compare_inspiration', 'Did either one feel more inspiring or more restrictive?'),
+                studyQuestion('compare_order', 'Do you think the order in which you saw the two kinds of feedback affected your experience?'),
+                studyQuestion('compare_change', 'Was there a moment when your understanding of ' + termName + ' changed or became more concrete? What caused that?')
+            ]
+        },
+        text_feedback: { title: termName + ' Text Feedback', items: [{ id: 'text_feedback_bank', type: 'feedback_bank' }] },
+        research_note: { title: 'Research Note', items: [{ id: 'research_note', type: 'note_form' }] },
+        transfer_task: {
+            title: 'Transfer Task',
+            items: [
+                studyStatement('transfer_prompt', 'You will now complete one final short composition using a new set of visual elements.\n\nThe target term is ' + termName + '.\n\nYou will not receive any feedback this time. Please use what you currently understand about the concept.\n\nPlease think aloud while you work. You may begin.', 'Allow about 2–3 minutes.'),
+                studyQuestion('transfer_demonstrate', 'How does your composition demonstrate ' + termName + '?'),
+                studyQuestion('transfer_decisions', 'Which visual decisions were most important?'),
+                studyQuestion('transfer_learning', 'Did you use anything you learned earlier in the study?'),
+                studyRating('transfer_confidence', 'How confident are you that this composition demonstrates the term, from 1 to 7?', '1 — Not confident', '7 — Very confident')
+            ]
+        },
+        final_interview: {
+            title: 'Final Interview',
+            items: [
+                studyQuestion('final_change', 'How, if at all, did your understanding of the design terms change during the study?'),
+                studyQuestion('final_before_feedback', 'Before receiving feedback, were there moments when you knew something could be improved but were not sure what to do? What changed once feedback was available?'),
+                studyQuestion('final_difference', 'Across both tasks, how would you describe the difference between written feedback and comparative visual feedback?'),
+                studyQuestion('final_words_alone', 'Were there moments when the visual feedback helped you notice something that would have been difficult to understand through words alone?'),
+                studyQuestion('final_abstract_action', 'What most helped you turn an abstract design term into a concrete design action?'),
+                studyQuestion('final_interpretation', 'Did the feedback help you develop your own interpretation, or did it feel like it was telling you what to do?'),
+                studyQuestion('final_language', 'Did language affect how easy or difficult it was to understand the terms or feedback?'),
+                studyQuestion('final_change_system', 'What would you change about EKPHRASIS or the feedback experience?'),
+                studyQuestion('final_other', 'Is there anything else you would like to tell us about your experience?')
+            ]
+        },
+        closing: {
+            title: 'Closing',
+            items: [
+                studyStatement('closing_complete', 'Thank you. You have completed the study.'),
+                studyStatement('closing_debrief', 'This research examines how written and comparative visual feedback may help learners connect abstract graphic design vocabulary with concrete visual decisions.\n\nPlease do not share the specific study tasks or feedback materials with potential participants until data collection is complete.'),
+                studyQuestion('closing_questions', 'Do you have any final questions?')
+            ]
+        }
+    };
+    return stages[stageId] || null;
+}
+
+function getStudyStageChain(stageId) {
+    return STUDY_STAGE_CHAINS.find(chain => chain.includes(stageId)) || [stageId];
+}
+
+function getStudyStageChainPosition(stageId, itemIndex) {
+    const chain = getStudyStageChain(stageId);
+    const stageIndex = Math.max(0, chain.indexOf(stageId));
+    let itemOffset = 0;
+    let itemTotal = 0;
+    chain.forEach(function (chainStageId, index) {
+        const chainStage = getStudyStage(chainStageId);
+        const count = chainStage ? chainStage.items.length : 0;
+        if (index < stageIndex) itemOffset += count;
+        itemTotal += count;
+    });
+    const absoluteIndex = itemOffset + itemIndex;
+    return {
+        chain: chain,
+        stageIndex: stageIndex,
+        absoluteIndex: absoluteIndex,
+        itemTotal: itemTotal,
+        isFirst: absoluteIndex === 0,
+        isLast: absoluteIndex === itemTotal - 1
+    };
+}
+
+function setCriterionOptions(options, selectedId) {
+    if (!criterionSelect) return;
+    const signature = options.map(item => item.id + ':' + item.name).join('|');
+    if (criterionSelect.dataset.optionSignature !== signature) {
+        criterionSelect.innerHTML = options.map(item => '<option value="' + item.id + '">' + item.name + '</option>').join('');
+        criterionSelect.dataset.optionSignature = signature;
+    }
+    const available = options.some(item => item.id === selectedId);
+    criterionSelect.value = available ? selectedId : options[0].id;
+    updateCriterionLabels();
+}
+
+function getStudyCriterionOptionsForTask(taskId) {
+    if (taskId !== 'transfer') return STUDY_CRITERIA_LIST;
+    const learnedIds = [studyProtocolState.taskTerms.task_1, studyProtocolState.taskTerms.task_2];
+    const learnedOptions = STUDY_CRITERIA_LIST.filter(item => learnedIds.includes(item.id));
+    return learnedOptions.length ? learnedOptions : STUDY_CRITERIA_LIST;
+}
+
+function syncStudyCriterionOptions() {
+    if (!criterionSelect || !modeSelect || !studyModeSelect) return;
+    const shouldUseStudyTerms = isStudyMode() && ['canvas', 'visual_aids'].includes(modeSelect.value);
+    if (shouldUseStudyTerms) {
+        if (!studyProtocolState.criterionContextActive) {
+            studyProtocolState.normalCriterion = criterionSelect.value || studyProtocolState.normalCriterion;
+            studyProtocolState.criterionContextActive = true;
+        }
+        const taskTerm = studyProtocolState.taskTerms[studyProtocolState.activeTask] || 'visual_balance';
+        setCriterionOptions(getStudyCriterionOptionsForTask(studyProtocolState.activeTask), taskTerm);
+        studyProtocolState.taskTerms[studyProtocolState.activeTask] = criterionSelect.value;
+        return;
+    }
+    if (studyProtocolState.criterionContextActive) {
+        studyProtocolState.criterionContextActive = false;
+        setCriterionOptions(CRITERIA_LIST, studyProtocolState.normalCriterion);
+    }
+}
+
+function updateStudyOrderLabels() {
+    document.querySelectorAll('[data-study-stage="feedback_1"], [data-study-stage="feedback_2"]').forEach(function (button) {
+        const round = button.dataset.studyStage === 'feedback_1' ? 1 : 2;
+        const label = getStudyFeedbackType(round) === 'text' ? 'Text' : 'Visual';
+        button.textContent = 'Feedback ' + round + ': ' + label;
+    });
+}
+
+function updateStudyResearchControls() {
+    const controls = document.getElementById('studyResearchControls');
+    if (!controls || !modeSelect) return;
+    const show = isStudyMode() && ['canvas', 'visual_aids', 'chess'].includes(modeSelect.value);
+    controls.classList.toggle('show', show);
+    if (containerEl) containerEl.classList.toggle('study-research-active', show);
+    document.querySelectorAll('.study-context-btn').forEach(function (button) {
+        const activeSurface = modeSelect.value === 'canvas' ? 'text' : (modeSelect.value === 'visual_aids' ? 'visual' : null);
+        button.classList.toggle('active', button.dataset.studySurface === activeSurface);
+    });
+    updateStudyOrderLabels();
+    if (!show) closeStudyCard('study_controls_hidden');
+    setTimeout(fitInViewport, 0);
+}
+
+function getStudyEventContext(stageId, item) {
+    let round = stageId === 'feedback_1' ? 1 : (stageId === 'feedback_2' ? 2 : null);
+    if (stageId === 'text_feedback' && studyProtocolState.activeTask !== 'transfer') {
+        round = getStudyFeedbackType(1) === 'text' ? 1 : 2;
+    }
+    return {
+        protocol_task: studyProtocolState.activeTask,
+        protocol_task_label: getStudyTaskLabel(studyProtocolState.activeTask),
+        protocol_stage: stageId,
+        protocol_item_id: item ? item.id : null,
+        term_id: getCurrentStudyTermId(),
+        term_name: getCurrentStudyTerm().name,
+        feedback_round: round,
+        feedback_type: round ? getStudyFeedbackType(round) : null,
+        task_1_feedback_order: studyProtocolState.task1Order
+    };
+}
+
+function getStudyVisualFeedbackRound() {
+    if (studyProtocolState.activeTask === 'transfer') return null;
+    return getStudyFeedbackType(1) === 'visual' ? 1 : 2;
+}
+
+const studyCardPosition = { x: 0, y: 0 };
+let studyCardDrag = null;
+
+function applyStudyCardPosition() {
+    const card = document.querySelector('.study-card');
+    if (!card) return;
+    card.style.setProperty('--study-card-x', studyCardPosition.x + 'px');
+    card.style.setProperty('--study-card-y', studyCardPosition.y + 'px');
+}
+
+function resetStudyCardPosition() {
+    studyCardPosition.x = 0;
+    studyCardPosition.y = 0;
+    applyStudyCardPosition();
+}
+
+function openStudyCard(stageId, itemIndex) {
+    const stage = getStudyStage(stageId);
+    const overlay = document.getElementById('studyCardOverlay');
+    if (!stage || !overlay) return;
+    const wasOpen = overlay.classList.contains('show');
+    if (!getStudyUsername()) showStatusToast('Enter a study username so responses can be recorded.');
+    studyProtocolState.activeStage = stageId;
+    studyProtocolState.activeItemIndex = Math.max(0, Math.min(itemIndex || 0, stage.items.length - 1));
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+    if (!wasOpen) resetStudyCardPosition();
+    const chainRoot = getStudyStageChain(stageId)[0];
+    document.querySelectorAll('.study-stage-btn').forEach(function (button) {
+        button.classList.toggle('active', button.dataset.studyStage === chainRoot);
+    });
+    renderStudyCard();
+    logStudyEvent('study_card_opened', getStudyEventContext(stageId, stage.items[studyProtocolState.activeItemIndex]));
+}
+
+function closeStudyCard(reason) {
+    const overlay = document.getElementById('studyCardOverlay');
+    if (!overlay || !overlay.classList.contains('show')) return;
+    const stageId = studyProtocolState.activeStage;
+    const stage = getStudyStage(stageId);
+    const item = stage ? stage.items[studyProtocolState.activeItemIndex] : null;
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.querySelectorAll('.study-stage-btn').forEach(function (button) { button.classList.remove('active'); });
+    logStudyEvent('study_card_closed', {
+        ...getStudyEventContext(stageId, item),
+        reason: reason || 'close_button'
+    });
+    studyProtocolState.activeStage = null;
+}
+
+function getStudyRatingKey(stageId, itemId) {
+    return studyProtocolState.activeTask + ':' + getCurrentStudyTermId() + ':' + stageId + ':' + itemId;
+}
+
+function selectStudyRating(score) {
+    const stage = getStudyStage(studyProtocolState.activeStage);
+    const item = stage && stage.items[studyProtocolState.activeItemIndex];
+    if (!item || item.type !== 'rating') return;
+    const key = getStudyRatingKey(studyProtocolState.activeStage, item.id);
+    studyProtocolState.ratings[key] = score;
+    logStudyEvent('study_rating_recorded', {
+        ...getStudyEventContext(studyProtocolState.activeStage, item),
+        question: item.text,
+        score: score,
+        scale_min: 1,
+        scale_max: 7
+    }, { stateSnapshot: true });
+    renderStudyCard();
+}
+
+function selectStudyTextFeedback(feedbackItem) {
+    if (!feedbackItem) return;
+    const selectionKey = studyProtocolState.activeTask;
+    studyProtocolState.selectedFeedback[selectionKey] = feedbackItem;
+    const stageId = studyProtocolState.activeStage;
+    const stage = getStudyStage(stageId);
+    const item = stage && stage.items[studyProtocolState.activeItemIndex];
+    logStudyEvent('text_feedback_selected', {
+        ...getStudyEventContext(stageId, item),
+        feedback_code: feedbackItem.code,
+        feedback_title: feedbackItem.title,
+        use_when: feedbackItem.useWhen,
+        feedback_text: feedbackItem.feedback
+    }, { stateSnapshot: true });
+    renderStudyCard();
+}
+
+function renderStudyFeedbackBank(container) {
+    const termId = getCurrentStudyTermId();
+    const bank = STUDY_TEXT_FEEDBACK_BANK[termId] || [];
+    const selected = studyProtocolState.selectedFeedback[studyProtocolState.activeTask];
+    if (selected && bank.some(item => item.code === selected.code)) {
+        const card = document.createElement('div');
+        card.className = 'study-selected-feedback';
+        const code = document.createElement('div');
+        code.className = 'study-selected-feedback-code';
+        code.textContent = selected.code + ' · ' + selected.title;
+        const text = document.createElement('div');
+        text.className = 'study-selected-feedback-text';
+        text.textContent = selected.feedback;
+        const reselect = document.createElement('button');
+        reselect.type = 'button';
+        reselect.className = 'study-feedback-reselect';
+        reselect.textContent = 'Choose another feedback';
+        reselect.addEventListener('click', function () {
+            delete studyProtocolState.selectedFeedback[studyProtocolState.activeTask];
+            renderStudyCard();
+        });
+        card.append(code, text, reselect);
+        container.appendChild(card);
+        return;
+    }
+    const cue = document.createElement('p');
+    cue.className = 'study-card-cue';
+    cue.textContent = 'Moderator: choose the one standard feedback item that best matches the main composition issue. The selected text will be recorded exactly as shown.';
+    const options = document.createElement('div');
+    options.className = 'study-feedback-options';
+    bank.forEach(function (feedbackItem) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'study-feedback-option';
+        const code = document.createElement('span');
+        code.className = 'study-feedback-code';
+        code.textContent = feedbackItem.code;
+        const label = document.createElement('span');
+        label.textContent = feedbackItem.title;
+        button.title = feedbackItem.useWhen;
+        button.append(code, label);
+        button.addEventListener('click', function () { selectStudyTextFeedback(feedbackItem); });
+        options.appendChild(button);
+    });
+    container.append(cue, options);
+}
+
+function renderStudyResearchNote(container) {
+    const form = document.createElement('div');
+    form.className = 'study-note-form';
+    const category = document.createElement('select');
+    [
+        ['representative_quote', 'Representative quote'],
+        ['key_modification', 'Key modification'],
+        ['system_anomaly', 'System anomaly'],
+        ['general_note', 'General note']
+    ].forEach(function (optionData) {
+        const option = document.createElement('option');
+        option.value = optionData[0];
+        option.textContent = optionData[1];
+        category.appendChild(option);
+    });
+    const note = document.createElement('textarea');
+    note.placeholder = 'Enter the participant’s words or a concise research note...';
+    note.maxLength = 5000;
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'study-note-save';
+    save.textContent = 'Save note';
+    save.disabled = true;
+    note.addEventListener('input', function () { save.disabled = !note.value.trim(); });
+    save.addEventListener('click', async function () {
+        const text = note.value.trim();
+        if (!text) return;
+        save.disabled = true;
+        const success = await logStudyEvent('research_note_recorded', {
+            ...getStudyEventContext('research_note', { id: 'research_note' }),
+            note_category: category.value,
+            note_text: text
+        }, { stateSnapshot: true });
+        if (success) {
+            note.value = '';
+            showStatusToast('Research note saved.');
+        } else {
+            save.disabled = false;
+            showStatusToast('Could not save the research note.');
+        }
+    });
+    form.append(category, note, save);
+    container.appendChild(form);
+}
+
+function renderStudyCard() {
+    const stageId = studyProtocolState.activeStage;
+    const stage = getStudyStage(stageId);
+    if (!stage) return;
+    const index = Math.max(0, Math.min(studyProtocolState.activeItemIndex, stage.items.length - 1));
+    studyProtocolState.activeItemIndex = index;
+    const item = stage.items[index];
+    const chainPosition = getStudyStageChainPosition(stageId, index);
+    const title = document.getElementById('studyCardTitle');
+    const content = document.getElementById('studyCardContent');
+    const progress = document.getElementById('studyCardProgress');
+    const back = document.getElementById('studyCardBackBtn');
+    const next = document.getElementById('studyCardNextBtn');
+    if (!title || !content || !progress || !back || !next) return;
+    title.textContent = stage.title;
+    content.replaceChildren();
+    if (item.type === 'feedback_bank') {
+        renderStudyFeedbackBank(content);
+    } else if (item.type === 'note_form') {
+        renderStudyResearchNote(content);
+    } else {
+        const text = document.createElement('p');
+        text.className = item.type === 'statement' ? 'study-card-statement' : 'study-card-question';
+        text.textContent = item.text;
+        content.appendChild(text);
+        if (item.cue) {
+            const cue = document.createElement('p');
+            cue.className = 'study-card-cue';
+            cue.textContent = item.cue;
+            content.appendChild(cue);
+        }
+        if (item.type === 'rating') {
+            const ratingKey = getStudyRatingKey(stageId, item.id);
+            const currentScore = studyProtocolState.ratings[ratingKey];
+            const scale = document.createElement('div');
+            scale.className = 'study-rating-scale';
+            for (let score = 1; score <= 7; score++) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'study-rating-btn' + (currentScore === score ? ' selected' : '');
+                button.textContent = String(score);
+                button.setAttribute('aria-label', 'Rate ' + score + ' out of 7');
+                button.addEventListener('click', function () { selectStudyRating(score); });
+                scale.appendChild(button);
+            }
+            const labels = document.createElement('div');
+            labels.className = 'study-rating-labels';
+            const low = document.createElement('span');
+            const high = document.createElement('span');
+            low.textContent = item.lowLabel;
+            high.textContent = item.highLabel;
+            labels.append(low, high);
+            content.append(scale, labels);
+        }
+    }
+    progress.textContent = (chainPosition.absoluteIndex + 1) + ' / ' + chainPosition.itemTotal;
+    const canReturnToFeedbackList = item.type === 'feedback_bank' && Boolean(studyProtocolState.selectedFeedback[studyProtocolState.activeTask]);
+    back.disabled = chainPosition.isFirst && !canReturnToFeedbackList;
+    next.textContent = chainPosition.isLast ? 'Done' : 'Next';
+    const missingRating = item.type === 'rating' && studyProtocolState.ratings[getStudyRatingKey(stageId, item.id)] == null;
+    const missingFeedback = item.type === 'feedback_bank' && !studyProtocolState.selectedFeedback[studyProtocolState.activeTask];
+    next.disabled = missingRating || missingFeedback;
+    logStudyEvent('study_protocol_item_shown', {
+        ...getStudyEventContext(stageId, item),
+        item_type: item.type,
+        item_text: item.text || '',
+        item_index: index,
+        item_count: stage.items.length
+    });
+}
+
+function moveStudyCard(direction) {
+    const stageId = studyProtocolState.activeStage;
+    const stage = getStudyStage(stageId);
+    if (!stage) return;
+    const item = stage.items[studyProtocolState.activeItemIndex];
+    if (direction < 0 && item && item.type === 'feedback_bank' && studyProtocolState.selectedFeedback[studyProtocolState.activeTask]) {
+        delete studyProtocolState.selectedFeedback[studyProtocolState.activeTask];
+        renderStudyCard();
+        return;
+    }
+    const nextIndex = studyProtocolState.activeItemIndex + direction;
+    const chainPosition = getStudyStageChainPosition(stageId, studyProtocolState.activeItemIndex);
+    if (nextIndex < 0) {
+        if (chainPosition.stageIndex === 0) return;
+        const previousStageId = chainPosition.chain[chainPosition.stageIndex - 1];
+        const previousStage = getStudyStage(previousStageId);
+        studyProtocolState.activeStage = previousStageId;
+        studyProtocolState.activeItemIndex = previousStage.items.length - 1;
+        renderStudyCard();
+        return;
+    }
+    if (nextIndex >= stage.items.length) {
+        const nextStageId = chainPosition.chain[chainPosition.stageIndex + 1];
+        if (!nextStageId) {
+            closeStudyCard('stage_completed');
+            if (chainPosition.chain[0] === 'post_task' && studyProtocolState.activeTask === 'task_1') {
+                activateStudyTask('task_2');
+            }
+            return;
+        }
+        studyProtocolState.activeStage = nextStageId;
+        studyProtocolState.activeItemIndex = 0;
+        renderStudyCard();
+        return;
+    }
+    studyProtocolState.activeItemIndex = nextIndex;
+    renderStudyCard();
+}
+
+function activateStudyTask(taskId) {
+    if (!studyProtocolState.taskTerms[taskId] || taskId === studyProtocolState.activeTask) return;
+    const previousTask = studyProtocolState.activeTask;
+    if (studyProtocolState.criterionContextActive && STUDY_TERM_CONTENT[criterionSelect.value]) {
+        studyProtocolState.taskTerms[previousTask] = criterionSelect.value;
+    }
+    closeStudyCard('task_context_changed');
+    studyProtocolState.activeTask = taskId;
+    setCriterionOptions(getStudyCriterionOptionsForTask(taskId), studyProtocolState.taskTerms[taskId]);
+    studyProtocolState.taskTerms[taskId] = criterionSelect.value;
+    lastCriterionValue = criterionSelect.value;
+    updateStudyResearchControls();
+    logStudyEvent('study_task_context_changed', {
+        from: previousTask,
+        to: taskId,
+        term_id: criterionSelect.value,
+        feedback_1_type: taskId === 'transfer' ? null : getStudyFeedbackType(1),
+        feedback_2_type: taskId === 'transfer' ? null : getStudyFeedbackType(2),
+        task_1_feedback_order: studyProtocolState.task1Order
+    }, { stateSnapshot: true });
+    syncStudyTask('protocol_task_changed');
+}
+
+function setStudyFeedbackSurface(surface) {
+    const targetMode = surface === 'text' ? 'canvas' : 'visual_aids';
+    if (modeSelect.value === targetMode) return;
+    const previousSurface = modeSelect.value === 'canvas' ? 'text' : 'visual';
+    modeSelect.value = targetMode;
+    saveAppMode();
+    applyMode();
+    logStudyEvent('study_feedback_surface_changed', {
+        from: previousSurface,
+        to: surface === 'text' ? 'text' : 'visual',
+        protocol_task: studyProtocolState.activeTask
+    });
+}
+
+document.querySelectorAll('.study-context-btn').forEach(function (button) {
+    button.addEventListener('click', function () { setStudyFeedbackSurface(button.dataset.studySurface); });
+});
+document.querySelectorAll('.study-stage-btn').forEach(function (button) {
+    button.addEventListener('click', function () {
+        const stageId = button.dataset.studyStage;
+        if (stageId === 'transfer_task') {
+            activateStudyTask('transfer');
+            setStudyFeedbackSurface('text');
+        }
+        openStudyCard(stageId, 0);
+    });
+});
+const studyCardCloseBtn = document.getElementById('studyCardCloseBtn');
+if (studyCardCloseBtn) studyCardCloseBtn.addEventListener('click', function () { closeStudyCard('close_button'); });
+const studyCardBackBtn = document.getElementById('studyCardBackBtn');
+if (studyCardBackBtn) studyCardBackBtn.addEventListener('click', function () { moveStudyCard(-1); });
+const studyCardNextBtn = document.getElementById('studyCardNextBtn');
+if (studyCardNextBtn) studyCardNextBtn.addEventListener('click', function () { moveStudyCard(1); });
+const studyCard = document.querySelector('.study-card');
+if (studyCard) {
+    studyCard.addEventListener('pointerdown', function (event) {
+        if (!event.target.closest('.study-card-drag-handle')) return;
+        const rect = studyCard.getBoundingClientRect();
+        studyCardDrag = {
+            pointerId: event.pointerId,
+            pointerX: event.clientX,
+            pointerY: event.clientY,
+            startX: studyCardPosition.x,
+            startY: studyCardPosition.y,
+            baseLeft: rect.left - studyCardPosition.x,
+            baseTop: rect.top - studyCardPosition.y
+        };
+        studyCard.setPointerCapture(event.pointerId);
+        studyCard.classList.add('dragging');
+        event.preventDefault();
+    });
+    studyCard.addEventListener('pointermove', function (event) {
+        if (!studyCardDrag || studyCardDrag.pointerId !== event.pointerId) return;
+        const overlay = document.getElementById('studyCardOverlay');
+        const bounds = overlay.getBoundingClientRect();
+        const proposedX = studyCardDrag.startX + event.clientX - studyCardDrag.pointerX;
+        const proposedY = studyCardDrag.startY + event.clientY - studyCardDrag.pointerY;
+        const minX = bounds.left + 8 - studyCardDrag.baseLeft;
+        const maxX = bounds.right - 8 - studyCardDrag.baseLeft - studyCard.offsetWidth;
+        const minY = bounds.top + 8 - studyCardDrag.baseTop;
+        const maxY = bounds.bottom - 8 - studyCardDrag.baseTop - studyCard.offsetHeight;
+        studyCardPosition.x = maxX >= minX ? Math.max(minX, Math.min(maxX, proposedX)) : 0;
+        studyCardPosition.y = maxY >= minY ? Math.max(minY, Math.min(maxY, proposedY)) : 0;
+        applyStudyCardPosition();
+    });
+    function endStudyCardDrag(event) {
+        if (!studyCardDrag || studyCardDrag.pointerId !== event.pointerId) return;
+        studyCard.classList.remove('dragging');
+        studyCardDrag = null;
+    }
+    studyCard.addEventListener('pointerup', endStudyCardDrag);
+    studyCard.addEventListener('pointercancel', endStudyCardDrag);
+}
+document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') closeStudyCard('escape_key');
+});
+criterionSelect.addEventListener('change', function () {
+    if (!studyProtocolState.criterionContextActive || !STUDY_TERM_CONTENT[criterionSelect.value]) return;
+    studyProtocolState.taskTerms[studyProtocolState.activeTask] = criterionSelect.value;
+    if (studyProtocolState.activeTask === 'task_1' || studyProtocolState.activeTask === 'task_2') {
+        const otherTask = studyProtocolState.activeTask === 'task_1' ? 'task_2' : 'task_1';
+        if (studyProtocolState.taskTerms[otherTask] === criterionSelect.value) {
+            const replacement = STUDY_CRITERIA_LIST.find(item => item.id !== criterionSelect.value);
+            if (replacement) studyProtocolState.taskTerms[otherTask] = replacement.id;
+        }
+        const learnedTerms = [studyProtocolState.taskTerms.task_1, studyProtocolState.taskTerms.task_2];
+        if (!learnedTerms.includes(studyProtocolState.taskTerms.transfer)) {
+            studyProtocolState.taskTerms.transfer = studyProtocolState.taskTerms.task_1;
+        }
+    }
+    updateStudyOrderLabels();
+    if (studyProtocolState.activeStage) renderStudyCard();
+    logStudyEvent('study_term_assigned', {
+        protocol_task: studyProtocolState.activeTask,
+        term_id: criterionSelect.value,
+        term_name: getCurrentStudyTerm().name,
+        task_terms: { ...studyProtocolState.taskTerms }
+    });
+});
 
 // About modal: click EKPHRASIS to show project description and paper link
 document.getElementById('ekphrasisAboutBtn').addEventListener('click', function () {
@@ -2374,6 +3496,17 @@ function describeStudyEvent(event) {
     if (event.event_type === 'self_explanation_submitted') {
         return payload.text || '';
     }
+    if (event.event_type === 'study_rating_recorded') {
+        const task = payload.protocol_task_label || payload.protocol_task || '';
+        const stage = payload.protocol_stage ? payload.protocol_stage.replaceAll('_', ' ') : '';
+        return `${payload.score} / 7 · ${payload.question || 'Rating'}${task ? ' · ' + task : ''}${stage ? ' · ' + stage : ''}`;
+    }
+    if (event.event_type === 'text_feedback_selected') {
+        return `${payload.feedback_code || ''}${payload.feedback_title ? ' · ' + payload.feedback_title : ''}${payload.feedback_text ? '\n' + payload.feedback_text : ''}`;
+    }
+    if (event.event_type === 'research_note_recorded') {
+        return `${(payload.note_category || 'note').replaceAll('_', ' ')} · ${payload.note_text || ''}`;
+    }
     const json = JSON.stringify(payload);
     return json.length > 180 ? json.slice(0, 180) + '…' : json;
 }
@@ -2406,12 +3539,19 @@ function renderStudyAnalysisCards(events) {
     const el = document.getElementById('studyAnalysisCards');
     if (!el) return;
     const sessions = new Set(events.map(e => e.session_id).filter(Boolean));
-    const feedbackCount = events.filter(e => e.event_type === 'feedback_returned').length;
+    const ratings = events
+        .filter(e => e.event_type === 'study_rating_recorded')
+        .map(e => Number((e.payload || {}).score))
+        .filter(score => Number.isFinite(score));
+    const averageRating = ratings.length
+        ? (ratings.reduce((sum, score) => sum + score, 0) / ratings.length).toFixed(2)
+        : '—';
+    const feedbackCount = events.filter(e => e.event_type === 'feedback_returned' || e.event_type === 'text_feedback_selected').length;
     const cards = [
-        { label: 'Events', value: String(events.length) },
-        { label: 'Sessions', value: String(sessions.size) },
-        { label: 'Feedback Returned', value: String(feedbackCount) },
-        { label: 'Avg. Revision Latency', value: computeAverageFeedbackLatency(events) }
+        { label: 'Ratings', value: String(ratings.length) },
+        { label: 'Avg. Rating', value: averageRating },
+        { label: 'Feedback Events', value: String(feedbackCount) },
+        { label: 'Sessions', value: String(sessions.size) }
     ];
     el.innerHTML = cards.map(card => `<div class="study-analysis-card"><div class="label">${card.label}</div><div class="value">${card.value}</div></div>`).join('');
 }
@@ -2424,7 +3564,10 @@ function renderStudyAnalysisBars(events) {
         return;
     }
     const counts = {};
-    events.forEach(event => { counts[event.event_type] = (counts[event.event_type] || 0) + 1; });
+    events.forEach(event => {
+        const type = isCompactTimelineEventType(event.event_type) ? 'system_events' : event.event_type;
+        counts[type] = (counts[type] || 0) + 1;
+    });
     const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     const max = entries[0] ? entries[0][1] : 1;
     el.innerHTML = `<div class="study-analysis-bars">${entries.map(([name, count]) => `<div class="study-analysis-bar-row"><div>${name}</div><div class="study-analysis-bar-track"><div class="study-analysis-bar-fill" style="width:${Math.max(6, (count / max) * 100)}%"></div></div><div>${count}</div></div>`).join('')}</div>`;
@@ -2435,7 +3578,15 @@ function isCompactTimelineEventType(eventType) {
         eventType === 'task_started' ||
         eventType === 'task_completed' ||
         eventType === 'mode_changed' ||
-        eventType === 'criterion_changed';
+        eventType === 'criterion_changed' ||
+        eventType === 'study_card_opened' ||
+        eventType === 'study_card_closed' ||
+        eventType === 'study_protocol_item_shown' ||
+        eventType === 'feedback_order_assigned' ||
+        eventType === 'study_feedback_surface_changed' ||
+        eventType === 'study_task_context_changed' ||
+        eventType === 'study_term_assigned' ||
+        eventType === 'generate_feedback_clicked';
 }
 
 function getStudyAnalysisTimelineItemId(item) {
@@ -2450,23 +3601,19 @@ function buildStudyAnalysisTimelineItems(events) {
     let compactBuffer = [];
     const flushCompactBuffer = function () {
         if (!compactBuffer.length) return;
-        if (compactBuffer.length === 1) {
-            grouped.push(compactBuffer[0]);
-        } else {
-            const first = compactBuffer[0];
-            const last = compactBuffer[compactBuffer.length - 1];
-            grouped.push({
-                is_group: true,
-                timeline_id: `group:${first.event_id || 'start'}:${last.event_id || 'end'}`,
-                event_type: 'system_group',
-                timestamp: last.timestamp || first.timestamp || '',
-                participant_id: last.participant_id || first.participant_id || '',
-                session_id: last.session_id || first.session_id || '',
-                app_mode: last.app_mode || first.app_mode || '',
-                criterion: last.criterion || first.criterion || '',
-                events: compactBuffer.slice()
-            });
-        }
+        const first = compactBuffer[0];
+        const last = compactBuffer[compactBuffer.length - 1];
+        grouped.push({
+            is_group: true,
+            timeline_id: `group:${first.event_id || 'start'}:${last.event_id || 'end'}`,
+            event_type: 'system_group',
+            timestamp: last.timestamp || first.timestamp || '',
+            participant_id: last.participant_id || first.participant_id || '',
+            session_id: last.session_id || first.session_id || '',
+            app_mode: last.app_mode || first.app_mode || '',
+            criterion: last.criterion || first.criterion || '',
+            events: compactBuffer.slice()
+        });
         compactBuffer = [];
     };
     recentEvents.forEach(event => {
@@ -2514,7 +3661,8 @@ function renderStudyAnalysisTimeline(timelineItems) {
         return t.toLocaleString();
     };
     const getTimelineHighlightClass = function (eventType) {
-        if (eventType === 'feedback_returned') return 'highlight-feedback';
+        if (eventType === 'feedback_returned' || eventType === 'text_feedback_selected') return 'highlight-feedback';
+        if (eventType === 'study_rating_recorded') return 'highlight-rating';
         if (eventType === 'block_add' || eventType === 'block_move' || eventType === 'block_resize' || eventType === 'undo' || eventType === 'redo') return 'highlight-edit';
         return '';
     };
@@ -2542,7 +3690,14 @@ function renderStudyAnalysisTimeline(timelineItems) {
         const typeClass = `study-analysis-event-type${highlightClass ? ' ' + highlightClass : ''}`;
         const previewSrc = item.is_group ? '' : getTimelinePreviewSrc(item);
         const previewHtml = previewSrc ? `<img class="study-analysis-event-thumb" src="${previewSrc}" alt="${item.event_type} preview">` : '';
-        const itemTypeLabel = item.is_group ? `${(item.events || []).length} system events` : item.event_type;
+        const itemPayload = item.payload || {};
+        const itemTypeLabel = item.is_group
+            ? `${(item.events || []).length} system events`
+            : (item.event_type === 'study_rating_recorded'
+                ? `Rating · ${itemPayload.score} / 7`
+                : (item.event_type === 'text_feedback_selected'
+                    ? `Text Feedback · ${itemPayload.feedback_code || ''}`
+                    : item.event_type));
         const itemBody = item.is_group ? describeStudyTimelineGroup(item) : describeStudyEvent(item);
         const metaText = highlightClass
             ? `${formatLocalTimeOnly(item.timestamp)} · ${item.app_mode || ''} · ${item.criterion || ''}`
@@ -2701,6 +3856,7 @@ function renderStudyAnalysisDetail(event) {
     const metaHtml = `<div class="study-analysis-detail-meta">${localTime}<br>${event.event_type} · ${event.app_mode || ''} · ${event.criterion || ''}</div>`;
     let cards = [];
     let note = '';
+    let specialDetail = '';
     if (event.event_type === 'feedback_returned') {
         cards = [
             renderStudyAnalysisImageCard('Composition', compositionSrc, 'Composition snapshot'),
@@ -2722,10 +3878,15 @@ function renderStudyAnalysisDetail(event) {
             renderStudyAnalysisImageCard('Computer Result', getStudyImageUrl(participantId, imageFiles.result), 'Computer result image')
         ];
         if (!imageFiles.result) note = 'This is likely a legacy event logged before image filename fields were added, so the saved result image cannot be resolved automatically.';
+    } else if (event.event_type === 'study_rating_recorded') {
+        const taskLabel = payload.protocol_task_label || payload.protocol_task || '';
+        const stageLabel = (payload.protocol_stage || '').replaceAll('_', ' ');
+        specialDetail = `<div class="study-analysis-rating-detail"><div class="study-analysis-rating-score">${payload.score} / 7</div><div class="study-analysis-rating-question">${payload.question || 'Rating question unavailable.'}</div><div class="study-analysis-rating-context">${[taskLabel, stageLabel, payload.term_name || event.criterion || ''].filter(Boolean).join(' · ')}</div></div>`;
     } else {
         note = 'No visual detail is available for this event type in the current MVP.';
     }
     detailEl.innerHTML = metaHtml +
+        specialDetail +
         (cards.length ? `<div class="study-analysis-detail-images">${cards.join('')}</div>` : '') +
         (note ? `<div class="study-analysis-detail-note">${note}</div>` : '');
     updateStudyAnalysisHeights();
@@ -2916,7 +4077,10 @@ function fitInViewport() {
     contentWrapper.style.transform = '';
     contentWrapper.style.transformOrigin = '';
     if (modeSelect.value === 'test_model' || modeSelect.value === 'study_analysis') return;
-    const available = containerEl.clientHeight;
+    const reserved = containerEl.classList.contains('study-research-active')
+        ? parseFloat(getComputedStyle(containerEl).paddingBottom) || 0
+        : 0;
+    const available = containerEl.clientHeight - reserved;
     const need = contentWrapper.scrollHeight;
     if (need > available && available > 0) {
         const scale = available / need;
@@ -2942,12 +4106,12 @@ function populateCriterionDropdown() {
         .then(r => r.json())
         .then(list => {
             CRITERIA_LIST = list.length ? list : CRITERIA_LIST;
-            criterionSelect.innerHTML = CRITERIA_LIST.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-            updateCriterionLabels();
+            if (studyProtocolState.criterionContextActive) syncStudyCriterionOptions();
+            else setCriterionOptions(CRITERIA_LIST, criterionSelect.value);
         })
         .catch(() => {
-            criterionSelect.innerHTML = CRITERIA_LIST.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-            updateCriterionLabels();
+            if (studyProtocolState.criterionContextActive) syncStudyCriterionOptions();
+            else setCriterionOptions(CRITERIA_LIST, criterionSelect.value);
         });
 }
 criterionSelect.addEventListener('change', updateCriterionLabels);
@@ -3766,7 +4930,10 @@ async function evaluateWithAI() {
     evaluateBtn.disabled = true;
     logStudyEvent('generate_feedback_clicked', {
         candidate_count: 20,
-        criterion: criterionSelect.value
+        criterion: criterionSelect.value,
+        protocol_task: studyProtocolState.activeTask,
+        feedback_round: isStudyMode() ? getStudyVisualFeedbackRound() : null,
+        feedback_type: 'visual'
     }, { stateSnapshot: true });
 
     try {
@@ -3889,6 +5056,9 @@ async function evaluateWithAI() {
             }
         }
         await logStudyEvent('feedback_returned', {
+            protocol_task: studyProtocolState.activeTask,
+            feedback_round: isStudyMode() ? getStudyVisualFeedbackRound() : null,
+            feedback_type: 'visual',
             attempt_count: attemptCount,
             candidate_count: 20,
             cumulative_candidate_count: allVariations.length,
@@ -3909,7 +5079,10 @@ async function evaluateWithAI() {
         const msg = 'Error: ' + (error.message || 'Could not reach ML server. Run: cd ml && python3 start_server.py');
         logStudyEvent('feedback_error', {
             stage: 'visual_aids',
-            message: error.message || 'Could not reach ML server.'
+            message: error.message || 'Could not reach ML server.',
+            protocol_task: studyProtocolState.activeTask,
+            feedback_round: isStudyMode() ? getStudyVisualFeedbackRound() : null,
+            feedback_type: 'visual'
         }, { stateSnapshot: true });
         showStatusToast(msg);
     } finally {
