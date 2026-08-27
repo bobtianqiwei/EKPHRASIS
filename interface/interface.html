@@ -93,6 +93,22 @@
         .topbar.bottombar .study-user-input { min-width: 72px; width: 76px; }
         .topbar.bottombar .study-user-wrap { display: none; align-items: center; gap: 6px; }
         .topbar.bottombar .study-user-wrap.show { display: flex; }
+        .researcher-window-btn {
+            display: none;
+            align-items: center;
+            min-height: 26px;
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            color: #333;
+            font: inherit;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        .researcher-window-btn.show { display: inline-flex; }
+        .researcher-window-btn:hover { background: #f3f3f3; }
         .about-modal-overlay {
             display: none;
             position: fixed;
@@ -1502,6 +1518,7 @@
                 </select>
             </div>
             <div class="topbar-right" style="position: relative;">
+                <button type="button" class="researcher-window-btn" id="researcherWindowBtn" title="Show Researcher Window">Researcher</button>
                 <select id="studyModeSelect" class="study-mode-select" title="Demo: no logging. Study: record to dataset/study/">
                     <option value="demo" selected>Demo</option>
                     <option value="study">Study</option>
@@ -1728,11 +1745,14 @@ if (chessReachedThresholdPctEl) {
 }
 const studyModeSelect = document.getElementById('studyModeSelect');
 const studyUserWrap = document.getElementById('studyUserWrap');
+const researcherWindowBtn = document.getElementById('researcherWindowBtn');
+let researcherWindow = null;
 
 function updateStudyUI() {
     const isStudy = studyModeSelect && studyModeSelect.value === 'study';
     const mode = modeSelect ? modeSelect.value : '';
     if (studyUserWrap) studyUserWrap.classList.toggle('show', isStudy);
+    if (researcherWindowBtn) researcherWindowBtn.classList.toggle('show', isStudy);
     const explanationWrap = document.getElementById('studyExplanationWrap');
     const explanationInput = document.getElementById('studyExplanationInput');
     const showExplanation = !!isStudy && selfExplanationEnabled && ['canvas', 'visual_aids', 'chess'].includes(mode);
@@ -2640,6 +2660,7 @@ function closeStudyCard(reason) {
         reason: reason || 'close_button'
     });
     studyProtocolState.activeStage = null;
+    postResearcherWindowState();
 }
 
 function getStudyRatingKey(stageId, itemId) {
@@ -2840,6 +2861,7 @@ function renderStudyCard() {
         item_index: index,
         item_count: stage.items.length
     });
+    postResearcherWindowState();
 }
 
 function moveStudyCard(direction) {
@@ -2879,6 +2901,94 @@ function moveStudyCard(direction) {
     }
     studyProtocolState.activeItemIndex = nextIndex;
     renderStudyCard();
+}
+
+function getResearcherWindowState() {
+    const stageId = studyProtocolState.activeStage;
+    const stage = getStudyStage(stageId);
+    const item = stage ? stage.items[studyProtocolState.activeItemIndex] : null;
+    const overlay = document.getElementById('studyCardOverlay');
+    const back = document.getElementById('studyCardBackBtn');
+    const next = document.getElementById('studyCardNextBtn');
+    const term = getCurrentStudyTerm();
+    const bank = STUDY_TEXT_FEEDBACK_BANK[getCurrentStudyTermId()] || [];
+    const selected = studyProtocolState.selectedFeedback[studyProtocolState.activeTask] || null;
+    return {
+        studyMode: isStudyMode(),
+        username: getStudyUsername(),
+        mode: modeSelect.value,
+        activeTask: studyProtocolState.activeTask,
+        taskLabel: getStudyTaskLabel(studyProtocolState.activeTask),
+        termId: getCurrentStudyTermId(),
+        termName: term.name,
+        taskTerms: { ...studyProtocolState.taskTerms },
+        feedback1Type: studyProtocolState.activeTask === 'transfer' ? null : getStudyFeedbackType(1),
+        feedback2Type: studyProtocolState.activeTask === 'transfer' ? null : getStudyFeedbackType(2),
+        cardOpen: Boolean(overlay && overlay.classList.contains('show')),
+        stageId: stageId,
+        stageTitle: stage ? stage.title : '',
+        itemType: item ? item.type : null,
+        itemText: item ? (item.text || '') : '',
+        itemIndex: stage ? studyProtocolState.activeItemIndex : null,
+        backDisabled: !back || back.disabled,
+        nextDisabled: !next || next.disabled,
+        nextLabel: next ? next.textContent : 'Next',
+        progress: (document.getElementById('studyCardProgress') || {}).textContent || '',
+        feedbackBank: bank.map(function (feedbackItem) { return { ...feedbackItem }; }),
+        selectedFeedback: selected ? { ...selected } : null,
+        visualAidsReady: Boolean(window._lastLessDataUrl && window._lastMoreDataUrl),
+        generatingVisualAids: Boolean(evaluateBtn && evaluateBtn.disabled)
+    };
+}
+
+function postResearcherWindowState() {
+    if (!researcherWindow || researcherWindow.closed) return;
+    const targetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
+    researcherWindow.postMessage({ type: 'ekphrasis_researcher_state', state: getResearcherWindowState() }, targetOrigin);
+}
+
+function openResearcherWindow() {
+    if (researcherWindow && !researcherWindow.closed) {
+        researcherWindow.focus();
+        postResearcherWindowState();
+        return;
+    }
+    researcherWindow = window.open('researcher-window.html', 'ekphrasisResearcherWindow', 'width=820,height=900,resizable=yes,scrollbars=yes');
+    if (!researcherWindow) {
+        showStatusToast('Allow pop-ups to open the Researcher Window.');
+        return;
+    }
+    setTimeout(postResearcherWindowState, 300);
+}
+
+function handleResearcherWindowCommand(command, payload) {
+    if (command === 'set_surface') {
+        setStudyFeedbackSurface(payload.surface);
+    } else if (command === 'set_task') {
+        activateStudyTask(payload.taskId);
+    } else if (command === 'open_stage') {
+        if (payload.stageId === 'transfer_task') {
+            activateStudyTask('transfer');
+            setStudyFeedbackSurface('text');
+        }
+        openStudyCard(payload.stageId, 0);
+    } else if (command === 'back') {
+        moveStudyCard(-1);
+    } else if (command === 'next') {
+        moveStudyCard(1);
+    } else if (command === 'close') {
+        closeStudyCard('researcher_window');
+    } else if (command === 'select_feedback') {
+        const feedbackItem = (STUDY_TEXT_FEEDBACK_BANK[getCurrentStudyTermId()] || []).find(function (item) { return item.code === payload.code; });
+        selectStudyTextFeedback(feedbackItem);
+    } else if (command === 'select_rating') {
+        const score = Number(payload.score);
+        if (score >= 1 && score <= 7) selectStudyRating(score);
+    } else if (command === 'generate_visual') {
+        setStudyFeedbackSurface('visual');
+        if (evaluateBtn && !evaluateBtn.disabled) evaluateBtn.click();
+    }
+    setTimeout(postResearcherWindowState, 0);
 }
 
 function activateStudyTask(taskId) {
