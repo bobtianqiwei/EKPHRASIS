@@ -9,10 +9,13 @@ import sys
 import subprocess
 import webbrowser
 import time
+import urllib.request
 from importlib import metadata
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+APP_URL = "http://localhost:5001/"
+RESEARCHER_URL = "http://localhost:5001/researcher-window.html"
 
 
 def get_installed_version(package_name):
@@ -146,38 +149,48 @@ def train_model():
         print(f"Error output: {e.stderr}")
         return False
 
+def wait_for_application(timeout_seconds=90):
+    """Wait until the backend serves both frontend windows."""
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        try:
+            for url in (APP_URL, RESEARCHER_URL):
+                with urllib.request.urlopen(url, timeout=3) as response:
+                    if response.status != 200:
+                        raise RuntimeError(f"{url} returned {response.status}")
+            return True
+        except Exception:
+            time.sleep(1)
+    return False
+
 def start_server():
-    """Start the ML server"""
-    print("Starting ML server...")
+    """Start the complete backend and wait for both frontend routes."""
+    print("Starting EKPHRASIS server...")
     try:
         # Start server in background
         server_process = subprocess.Popen(
             [sys.executable, "start_server.py"],
             cwd=str(PROJECT_ROOT / "ml"),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
         )
         
-        # Wait a bit for server to start
-        time.sleep(3)
-        
-        # Check if server is running
-        if server_process.poll() is None:
-            print("✓ ML server started successfully")
+        if server_process.poll() is None and wait_for_application():
+            print("✓ Backend, main interface, and Researcher Window are ready")
             return server_process
+        if server_process.poll() is not None:
+            print(f"❌ Server failed to start with code {server_process.returncode}")
         else:
-            stdout, stderr = server_process.communicate()
-            print(f"❌ Server failed to start: {stderr.decode()}")
-            return None
+            print("❌ Server did not make all application routes ready in time")
+            server_process.terminate()
+            server_process.wait()
+        return None
     except Exception as e:
         print(f"❌ Failed to start server: {e}")
         return None
 
 def open_interface():
     """Open the web interface (served by backend at localhost:5001)."""
-    url = "http://localhost:5001/"
-    print(f"Opening interface: {url}")
-    webbrowser.open(url)
+    print(f"Opening interface: {APP_URL}")
+    webbrowser.open(APP_URL)
     return True
 
 def main():
@@ -213,8 +226,8 @@ def main():
     print("\n" + "=" * 40)
     print("🎉 EKPHRASIS is now running!")
     print("\nSystem Status:")
-    print("  ✓ ML Server: http://localhost:5001")
-    print("  ✓ Interface: interface/interface.html")
+    print("  ✓ Application: http://localhost:5001/")
+    print("  ✓ Researcher Window: available from the Study mode bottom bar")
     print("\nUsage:")
     print("  1. Create a composition on the canvas")
     print("  2. Click 'Evaluate with AI' to analyze")

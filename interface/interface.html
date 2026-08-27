@@ -66,29 +66,42 @@
             color: #333;
             min-width: 100px;
         }
-        /* Unify bottom bar: mode select, criterion select, and status button — same size, font, stroke, larger radius */
+        /* Keep every bottom bar control consistent across browsers. */
         .topbar.bottombar .topbar-mode-select,
         .topbar.bottombar .criterion-select,
-        .topbar.bottombar .backend-status-btn {
+        .topbar.bottombar .backend-status-btn,
+        .topbar.bottombar .study-mode-select,
+        .topbar.bottombar .study-user-input,
+        .topbar.bottombar .researcher-window-btn {
+            height: 28px;
+            min-height: 28px;
             padding: 4px 8px;
             font-size: 13px;
+            line-height: 18px;
             border: 1px solid #ccc;
             border-radius: 8px;
-            min-height: 26px;
+            background-color: #fff;
+            color: #333;
+            -webkit-appearance: none;
+            appearance: none;
             box-sizing: border-box;
+        }
+        .topbar.bottombar .topbar-mode-select,
+        .topbar.bottombar .criterion-select,
+        .topbar.bottombar .study-mode-select {
+            padding-right: 22px;
+            background-image:
+                linear-gradient(45deg, transparent 50%, #666 50%),
+                linear-gradient(135deg, #666 50%, transparent 50%);
+            background-position:
+                calc(100% - 10px) 11px,
+                calc(100% - 6px) 11px;
+            background-repeat: no-repeat;
+            background-size: 4px 4px;
         }
         .topbar.bottombar .topbar-mode-select { min-width: 102px; width: 102px; }
         .topbar.bottombar .criterion-select { min-width: 100px; }
         .topbar.bottombar .backend-status-btn { background: #fff; }
-        .topbar.bottombar .study-mode-select,
-        .topbar.bottombar .study-user-input {
-            padding: 4px 8px;
-            font-size: 13px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            min-height: 26px;
-            box-sizing: border-box;
-        }
         .topbar.bottombar .study-mode-select { min-width: 72px; }
         .topbar.bottombar .study-user-input { min-width: 72px; width: 76px; }
         .topbar.bottombar .study-user-wrap { display: none; align-items: center; gap: 6px; }
@@ -96,7 +109,8 @@
         .researcher-window-btn {
             display: none;
             align-items: center;
-            min-height: 26px;
+            height: 28px;
+            min-height: 28px;
             padding: 4px 8px;
             border: 1px solid #ccc;
             border-radius: 8px;
@@ -104,8 +118,10 @@
             color: #333;
             font: inherit;
             font-size: 13px;
+            text-decoration: none;
             white-space: nowrap;
             cursor: pointer;
+            box-sizing: border-box;
         }
         .researcher-window-btn.show { display: inline-flex; }
         .researcher-window-btn:hover { background: #f3f3f3; }
@@ -1518,7 +1534,7 @@
                 </select>
             </div>
             <div class="topbar-right" style="position: relative;">
-                <button type="button" class="researcher-window-btn" id="researcherWindowBtn" title="Show Researcher Window">Researcher</button>
+                <a class="researcher-window-btn" id="researcherWindowBtn" href="researcher-window.html" target="ekphrasisResearcherWindow" title="Show Researcher Window">Researcher</a>
                 <select id="studyModeSelect" class="study-mode-select" title="Demo: no logging. Study: record to dataset/study/">
                     <option value="demo" selected>Demo</option>
                     <option value="study">Study</option>
@@ -1747,12 +1763,18 @@ const studyModeSelect = document.getElementById('studyModeSelect');
 const studyUserWrap = document.getElementById('studyUserWrap');
 const researcherWindowBtn = document.getElementById('researcherWindowBtn');
 let researcherWindow = null;
+const researcherChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('ekphrasis-study-researcher') : null;
+const researcherCommandIds = new Set();
 
 function updateStudyUI() {
     const isStudy = studyModeSelect && studyModeSelect.value === 'study';
     const mode = modeSelect ? modeSelect.value : '';
     if (studyUserWrap) studyUserWrap.classList.toggle('show', isStudy);
     if (researcherWindowBtn) researcherWindowBtn.classList.toggle('show', isStudy);
+    if (!isStudy && researcherWindow && !researcherWindow.closed) {
+        researcherWindow.close();
+        researcherWindow = null;
+    }
     const explanationWrap = document.getElementById('studyExplanationWrap');
     const explanationInput = document.getElementById('studyExplanationInput');
     const showExplanation = !!isStudy && selfExplanationEnabled && ['canvas', 'visual_aids', 'chess'].includes(mode);
@@ -2922,6 +2944,7 @@ function getResearcherWindowState() {
         termId: getCurrentStudyTermId(),
         termName: term.name,
         taskTerms: { ...studyProtocolState.taskTerms },
+        task1FeedbackOrder: studyProtocolState.task1Order,
         feedback1Type: studyProtocolState.activeTask === 'transfer' ? null : getStudyFeedbackType(1),
         feedback2Type: studyProtocolState.activeTask === 'transfer' ? null : getStudyFeedbackType(2),
         cardOpen: Boolean(overlay && overlay.classList.contains('show')),
@@ -2942,31 +2965,68 @@ function getResearcherWindowState() {
 }
 
 function postResearcherWindowState() {
-    if (!researcherWindow || researcherWindow.closed) return;
-    const targetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
-    researcherWindow.postMessage({ type: 'ekphrasis_researcher_state', state: getResearcherWindowState() }, targetOrigin);
+    const message = { type: 'ekphrasis_researcher_state', state: getResearcherWindowState() };
+    if (researcherChannel) researcherChannel.postMessage(message);
+    if (researcherWindow && !researcherWindow.closed) {
+        const targetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
+        researcherWindow.postMessage(message, targetOrigin);
+    }
 }
 
-function openResearcherWindow() {
+function openResearcherWindow(event) {
+    if (!isStudyMode()) {
+        event.preventDefault();
+        return;
+    }
     if (researcherWindow && !researcherWindow.closed) {
+        event.preventDefault();
         researcherWindow.focus();
         postResearcherWindowState();
         return;
     }
-    researcherWindow = window.open('researcher-window.html', 'ekphrasisResearcherWindow', 'width=820,height=900,resizable=yes,scrollbars=yes');
-    if (!researcherWindow) {
-        showStatusToast('Allow pop-ups to open the Researcher Window.');
+    const openedWindow = window.open('researcher-window.html', 'ekphrasisResearcherWindow', 'width=820,height=900,resizable=yes,scrollbars=yes');
+    if (openedWindow) {
+        event.preventDefault();
+        researcherWindow = openedWindow;
+        setTimeout(postResearcherWindowState, 300);
+    }
+}
+
+function configureStudyProtocol(payload) {
+    const validTerms = STUDY_CRITERIA_LIST.map(function (item) { return item.id; });
+    const task1Term = validTerms.includes(payload.task1Term) ? payload.task1Term : studyProtocolState.taskTerms.task_1;
+    const task2Term = validTerms.includes(payload.task2Term) ? payload.task2Term : studyProtocolState.taskTerms.task_2;
+    if (task1Term === task2Term) {
+        showStatusToast('Task 1 and Task 2 must use different terms.');
         return;
     }
-    setTimeout(postResearcherWindowState, 300);
+    const task1Order = payload.task1Order === 'visual_text' ? 'visual_text' : 'text_visual';
+    const transferTerm = [task1Term, task2Term].includes(payload.transferTerm) ? payload.transferTerm : task1Term;
+    closeStudyCard('protocol_configured');
+    studyProtocolState.task1Order = task1Order;
+    studyProtocolState.taskTerms = { task_1: task1Term, task_2: task2Term, transfer: transferTerm };
+    studyProtocolState.activeTask = 'task_1';
+    setCriterionOptions(getStudyCriterionOptionsForTask('task_1'), task1Term);
+    lastCriterionValue = criterionSelect.value;
+    updateStudyResearchControls();
+    logStudyEvent('study_protocol_configured', {
+        task_1_term: task1Term,
+        task_2_term: task2Term,
+        transfer_term: transferTerm,
+        task_1_feedback_order: task1Order
+    }, { stateSnapshot: true });
 }
 
 function handleResearcherWindowCommand(command, payload) {
-    if (command === 'set_surface') {
+    if (!isStudyMode()) return;
+    if (command === 'configure_protocol') {
+        configureStudyProtocol(payload);
+    } else if (command === 'set_surface') {
         setStudyFeedbackSurface(payload.surface);
     } else if (command === 'set_task') {
         activateStudyTask(payload.taskId);
     } else if (command === 'open_stage') {
+        if (payload.taskId && studyProtocolState.taskTerms[payload.taskId]) activateStudyTask(payload.taskId);
         if (payload.stageId === 'transfer_task') {
             activateStudyTask('transfer');
             setStudyFeedbackSurface('text');
@@ -2989,6 +3049,22 @@ function handleResearcherWindowCommand(command, payload) {
         if (evaluateBtn && !evaluateBtn.disabled) evaluateBtn.click();
     }
     setTimeout(postResearcherWindowState, 0);
+}
+
+function receiveResearcherWindowCommand(data, source) {
+    if (!data || data.type !== 'ekphrasis_researcher_command') return;
+    if (data.command === 'ready' && source) researcherWindow = source;
+    if (source && data.command !== 'ready' && source !== researcherWindow) return;
+    if (data.id && researcherCommandIds.has(data.id)) return;
+    if (data.id) {
+        researcherCommandIds.add(data.id);
+        if (researcherCommandIds.size > 100) researcherCommandIds.clear();
+    }
+    if (data.command === 'ready') {
+        postResearcherWindowState();
+        return;
+    }
+    handleResearcherWindowCommand(data.command, data.payload || {});
 }
 
 function activateStudyTask(taskId) {
@@ -3031,6 +3107,17 @@ function setStudyFeedbackSurface(surface) {
 document.querySelectorAll('.study-context-btn').forEach(function (button) {
     button.addEventListener('click', function () { setStudyFeedbackSurface(button.dataset.studySurface); });
 });
+if (researcherWindowBtn) researcherWindowBtn.addEventListener('click', openResearcherWindow);
+window.addEventListener('message', function (event) {
+    const allowedOrigin = window.location.origin === 'null' || event.origin === window.location.origin;
+    if (!allowedOrigin) return;
+    receiveResearcherWindowCommand(event.data, event.source);
+});
+if (researcherChannel) {
+    researcherChannel.addEventListener('message', function (event) {
+        receiveResearcherWindowCommand(event.data, null);
+    });
+}
 document.querySelectorAll('.study-stage-btn').forEach(function (button) {
     button.addEventListener('click', function () {
         const stageId = button.dataset.studyStage;
@@ -5199,6 +5286,7 @@ async function evaluateWithAI() {
         document.getElementById('evaluateBtnSpinner').classList.remove('show');
         document.getElementById('evaluateBtnText').textContent = 'Generate visual aids';
         evaluateBtn.disabled = false;
+        postResearcherWindowState();
     }
 }
 

@@ -1,0 +1,344 @@
+<!-- researcher-window.html developed by Bob Tianqi Wei -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EKPHRASIS Researcher Window</title>
+    <style>
+        :root { color-scheme: light; font-family: Arial, sans-serif; }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #f4f4f2; color: #202020; }
+        button, select { font: inherit; }
+        button { cursor: pointer; }
+        button:disabled { cursor: default; opacity: 0.4; }
+        .page { width: min(920px, 100%); margin: 0 auto; padding: 20px 20px 80px; }
+        .setup, .console, .script-section {
+            border: 1px solid #d8d8d4;
+            border-radius: 14px;
+            background: #fff;
+        }
+        .setup { padding: 18px; margin-bottom: 12px; }
+        h1 { margin: 0 0 5px; font-size: 24px; }
+        .subtitle, .note { color: #6d6d68; font-size: 13px; line-height: 1.45; }
+        .config-grid { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; margin-top: 16px; }
+        .config-grid label { display: grid; gap: 5px; color: #666; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+        select, .btn {
+            min-height: 32px;
+            padding: 6px 9px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #fff;
+            color: #222;
+        }
+        .apply-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+        .btn.primary, .btn.active { border-color: #111; background: #111; color: #fff; }
+        .btn.soft { background: #f4f4f2; }
+        .btn.small { min-height: 28px; padding: 4px 8px; font-size: 12px; }
+        .console {
+            position: sticky;
+            top: 8px;
+            z-index: 20;
+            padding: 12px;
+            margin-bottom: 18px;
+            box-shadow: 0 8px 26px rgba(0,0,0,0.1);
+        }
+        .console-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+        .connection { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #777; }
+        .connection::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #d45a4d; }
+        .connection.connected::before { background: #39a568; }
+        .current-state { font-size: 13px; font-weight: 700; }
+        .control-row { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+        .control-row + .control-row { margin-top: 5px; }
+        .control-label { flex: 0 0 auto; width: 48px; color: #888; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .card-state { height: 58px; margin-top: 8px; padding: 9px 10px; overflow-y: auto; overscroll-behavior: contain; border-radius: 9px; background: #f6f6f3; font-size: 12px; line-height: 1.4; }
+        .card-state strong { display: block; margin-bottom: 2px; }
+        .rating-panel, .feedback-panel { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e7e7e2; }
+        .rating-panel.show, .feedback-panel.show { display: block; }
+        .rating-buttons { display: flex; gap: 5px; margin-top: 6px; }
+        .rating-buttons .btn { width: 34px; min-width: 34px; padding: 4px; }
+        .feedback-options { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin-top: 6px; }
+        .feedback-option { min-height: 34px; padding: 5px; border: 1px solid #ccc; border-radius: 7px; background: #fff; font-size: 11px; }
+        .feedback-option.selected { border-color: #111; background: #111; color: #fff; }
+        .script { display: grid; gap: 12px; }
+        .script-section { padding: 20px; scroll-margin-top: 238px; }
+        .script-section.current { border-color: #111; box-shadow: 0 0 0 1px #111; }
+        .section-kicker { margin-bottom: 4px; color: #888; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+        h2 { margin: 0 0 13px; font-size: 20px; }
+        h3 { margin: 18px 0 8px; font-size: 15px; }
+        p, li { font-size: 14px; line-height: 1.55; }
+        p { margin: 8px 0; }
+        ul { margin: 8px 0; padding-left: 22px; }
+        .spoken { padding-left: 12px; border-left: 3px solid #d9d9d5; }
+        .moderator-note { margin: 10px 0; padding: 9px 11px; border-radius: 8px; background: #fff7dc; color: #665525; font-size: 12px; line-height: 1.45; }
+        .inline-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; padding: 9px; border-radius: 9px; background: #efefec; }
+        .inline-feedback { margin-top: 8px; }
+        .definition { white-space: pre-line; }
+        @media (max-width: 720px) {
+            .config-grid { grid-template-columns: 1fr 1fr; }
+            .feedback-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .page { padding-inline: 10px; }
+            .script-section { scroll-margin-top: 280px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="setup">
+            <h1>EKPHRASIS Researcher Window</h1>
+            <div class="subtitle">Configure the protocol, read the generated moderator script, and control what appears in the participant window.</div>
+            <div class="config-grid">
+                <label>Task 1 term<select id="task1Term"></select></label>
+                <label>Task 2 term<select id="task2Term"></select></label>
+                <label>Task 1 order<select id="task1Order"><option value="text_visual">Text → Visual</option><option value="visual_text">Visual → Text</option></select></label>
+                <label>Transfer term<select id="transferTerm"></select></label>
+            </div>
+            <div class="apply-row">
+                <span class="note" id="configNote">Task 2 automatically uses the opposite feedback order.</span>
+                <button type="button" class="btn primary" id="applyConfig">Apply protocol</button>
+            </div>
+        </section>
+
+        <section class="console" aria-label="Research controls">
+            <div class="console-head">
+                <span class="connection" id="connectionState">Waiting for participant window</span>
+                <span class="current-state" id="currentState">No study state</span>
+            </div>
+            <div class="control-row">
+                <span class="control-label">Context</span>
+                <button class="btn small" data-command="set_surface" data-surface="text">Text</button>
+                <button class="btn small" data-command="set_surface" data-surface="visual">Visual</button>
+                <button class="btn small soft" data-command="generate_visual">Generate Visual Aids</button>
+                <span class="note" id="visualStatus"></span>
+            </div>
+            <div class="control-row" id="stageControls">
+                <span class="control-label">Task</span>
+                <button class="btn small" data-stage="pre_task">Start task</button>
+                <button class="btn small" data-stage="before_feedback">Before feedback</button>
+                <button class="btn small" data-stage="feedback_1" id="feedback1Control">Feedback 1</button>
+                <button class="btn small" data-stage="after_revision_1">After revision 1</button>
+                <button class="btn small" data-stage="feedback_2" id="feedback2Control">Feedback 2</button>
+                <button class="btn small" data-stage="after_revision_2">After revision 2</button>
+                <button class="btn small" data-stage="post_task">Post-task</button>
+            </div>
+            <div class="control-row">
+                <span class="control-label">Card</span>
+                <button class="btn small" data-command="back" id="cardBack">Back</button>
+                <button class="btn small primary" data-command="next" id="cardNext">Next</button>
+                <button class="btn small" data-command="close">Close</button>
+                <span class="note" id="cardProgress"></span>
+            </div>
+            <div class="card-state" id="cardState"><strong>No card is open.</strong>Use an inline Show card button or a Task control above.</div>
+            <div class="rating-panel" id="ratingPanel">
+                <strong>Record participant rating</strong>
+                <div class="rating-buttons" id="ratingButtons"></div>
+            </div>
+            <div class="feedback-panel" id="feedbackPanel">
+                <strong>Select the standardized text feedback</strong>
+                <div class="feedback-options" id="feedbackOptions"></div>
+            </div>
+        </section>
+
+        <div class="script" id="script">
+            <section class="script-section" data-script-stage="introduction">
+                <div class="section-kicker">Before tasks</div><h2>1. Introduction</h2>
+                <div class="moderator-note">Read verbally. Use Show participant card only if you want the participant to read the same text.</div>
+                <div class="inline-actions"><button class="btn small" data-stage="introduction">Show participant card</button><button class="btn small" data-command="next">Next card</button></div>
+                <div class="spoken"><p>Hi, thank you for joining the study today.</p><p>We are studying how different forms of feedback may support learning graphic design vocabulary. During the study, you will create simple visual compositions and revise them based on different kinds of feedback.</p><p>We are interested in how you understand the design concepts and how you make decisions while designing. We are not evaluating your artistic ability, and there is no single correct composition.</p><p>The study will take approximately 40–45 minutes.</p><p>During the design tasks, please think aloud. Tell me what you notice, what you are thinking about, and why you make particular changes.</p><p>I will share my computer screen and give you remote control through Zoom. You do not need to install anything.</p><p>[Complete consent and recording procedure.]</p><p>Do you have any questions before we begin?</p></div>
+            </section>
+            <section class="script-section" data-script-stage="practice">
+                <div class="section-kicker">Before tasks</div><h2>2. Interface Practice</h2>
+                <div class="inline-actions"><button class="btn small" data-command="set_surface" data-surface="text">Use Text / Canvas</button><button class="btn small" data-stage="practice">Show participant card</button><button class="btn small" data-command="next">Next card</button></div>
+                <div class="spoken"><p>I will give you remote control now.</p><p>Please try:</p><ul><li>moving a shape</li><li>resizing a shape</li><li>changing its color</li><li>duplicating a shape</li><li>deleting a shape</li><li>undoing an action</li></ul><p>Do the controls feel okay?</p><p>Do you have any questions about using the interface?</p></div>
+            </section>
+            <div id="task1Script"></div>
+            <div id="task2Script"></div>
+            <section class="script-section" data-script-stage="transfer_task">
+                <div class="section-kicker">Transfer</div><h2>13. Transfer Task · <span data-transfer-term></span></h2>
+                <div class="moderator-note">Use a new material set. Do not provide feedback. The rating can be recorded through the card when this window opens the Transfer Task.</div>
+                <div class="inline-actions"><button class="btn small" data-command="set_surface" data-surface="text">Use Text / Canvas</button><button class="btn small" data-stage="transfer_task">Show Transfer card</button><button class="btn small" data-command="back">Back</button><button class="btn small" data-command="next">Next card</button></div>
+                <div class="spoken"><p>You will now complete one final short composition using a new set of visual elements.</p><p>The target term is <strong data-transfer-term></strong>.</p><p>You will not receive any feedback this time. Please use what you currently understand about the concept.</p><p>Please think aloud while you work. You may begin.</p><p>When finished:</p><p>How does your composition demonstrate <span data-transfer-term></span>?</p><p>Which visual decisions were most important?</p><p>Did you use anything you learned earlier in the study?</p><p>How confident are you that this composition demonstrates the term, from 1 to 7?</p></div>
+            </section>
+            <section class="script-section" data-script-stage="final_interview">
+                <div class="section-kicker">Wrap-up</div><h2>14. Final Interview</h2>
+                <div class="inline-actions"><button class="btn small" data-stage="final_interview">Show participant card</button><button class="btn small" data-command="back">Back</button><button class="btn small" data-command="next">Next card</button></div>
+                <div class="spoken"><p>I have a few final questions.</p><p>How, if at all, did your understanding of the design terms change during the study?</p><p>Before receiving feedback, were there moments when you knew something could be improved but were not sure what to do? What changed once feedback was available?</p><p>Across both tasks, how would you describe the difference between written feedback and comparative visual feedback?</p><p>Were there moments when the visual feedback helped you notice something that would have been difficult to understand through words alone?</p><p>What most helped you turn an abstract design term into a concrete design action?</p><p>Did the feedback help you develop your own interpretation, or did it feel like it was telling you what to do?</p><p>Did language affect how easy or difficult it was to understand the terms or feedback?</p><p>What would you change about EKPHRASIS or the feedback experience?</p><p>Is there anything else you would like to tell us about your experience?</p></div>
+            </section>
+            <section class="script-section" data-script-stage="closing">
+                <div class="section-kicker">Wrap-up</div><h2>15. Closing</h2>
+                <div class="inline-actions"><button class="btn small" data-stage="closing">Show participant card</button><button class="btn small" data-command="back">Back</button><button class="btn small" data-command="next">Next card</button></div>
+                <div class="spoken"><p>Thank you. You have completed the study.</p><p>This research examines how written and comparative visual feedback may help learners connect abstract graphic design vocabulary with concrete visual decisions.</p><p>Please do not share the specific study tasks or feedback materials with potential participants until data collection is complete.</p><p>Do you have any final questions?</p><p>Thank you again for your time.</p></div>
+            </section>
+        </div>
+    </main>
+    <script>
+        const TERMS = {
+            visual_balance: { name: 'Visual Balance', definition: 'Visual balance refers to how visual weight is distributed across a composition.\n\nVisual weight can come from properties such as size, color, contrast, density, texture, position, or complexity.\n\nA composition feels balanced when its visual weight feels intentionally distributed rather than unintentionally heavy or unstable in one area.\n\nBalance does not require symmetry. Different visual elements can counterbalance one another through their relative weight and position.' },
+            visual_hierarchy: { name: 'Visual Hierarchy', definition: 'Visual hierarchy refers to the order in which a viewer notices and understands elements in a composition.\n\nDesigners can create hierarchy through properties such as size, contrast, color, spacing, alignment, position, and grouping.\n\nA clear hierarchy establishes different levels of visual importance, helping the viewer understand which elements are primary, secondary, and supporting.' },
+            rhythm: { name: 'Visual Rhythm', definition: 'Visual rhythm refers to a sense of visual movement created through repetition and variation.\n\nDesigners can create rhythm through repeated or varied properties such as shape, color, line, spacing, texture, size, or direction.\n\nRepetition can create continuity, while controlled variation can create movement, change, and emphasis within the composition.' }
+        };
+        let studyState = null;
+        let configDirty = false;
+        let scriptSignature = '';
+        const researcherChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('ekphrasis-study-researcher') : null;
+
+        function send(command, payload) {
+            const message = { type: 'ekphrasis_researcher_command', id: Date.now().toString(36) + Math.random().toString(36).slice(2), command: command, payload: payload || {} };
+            if (researcherChannel) researcherChannel.postMessage(message);
+            if (window.opener && !window.opener.closed) {
+                window.opener.postMessage(message, window.location.origin === 'null' ? '*' : window.location.origin);
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>'"]/g, function (char) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]; });
+        }
+
+        function actionBar(taskId, stageId, label) {
+            return '<div class="inline-actions"><button class="btn small primary" data-task="' + taskId + '" data-stage="' + stageId + '">' + label + '</button><button class="btn small" data-command="back">Back</button><button class="btn small" data-command="next">Next card</button><button class="btn small" data-command="close">Close card</button></div>';
+        }
+
+        function feedbackScript(taskId, round, type, termName) {
+            const stageId = 'feedback_' + round;
+            const title = 'Feedback ' + round + ' · ' + (type === 'text' ? 'Text' : 'Visual');
+            const secondQuestion = round === 2 ? '<p>Does this feedback add anything that the previous feedback did not?</p>' : '';
+            if (type === 'text') {
+                return '<section class="script-section" data-script-stage="' + stageId + '" data-script-task="' + taskId + '"><div class="section-kicker">' + title + '</div><h2>' + (round === 1 ? '7' : '9') + '. ' + title + '</h2>' + actionBar(taskId, stageId, 'Show ' + title + ' card') + '<div class="moderator-note">Click Next once to open the standardized feedback bank. Select one item in this window. The same text appears and is recorded in the participant window.</div><div class="inline-feedback" data-inline-feedback="' + stageId + '"></div><div class="spoken"><p>' + (round === 1 ? 'You will now receive a short piece of written feedback. Please read it and think aloud about what it means for your composition.' : 'You will now receive written feedback about your revised composition. Please read it and think aloud.') + '</p><p>What do you think this feedback is pointing to?</p><p>What, if anything, does it make you consider changing?</p>' + secondQuestion + '<p>How helpful was it for understanding ' + escapeHtml(termName) + '?</p><p>How helpful was it for deciding what to do next?</p><p>How much did you trust the feedback?</p><p>You may now revise your composition' + (round === 2 ? ' again' : '') + '. Please continue thinking aloud.</p></div></section>';
+            }
+            return '<section class="script-section" data-script-stage="' + stageId + '" data-script-task="' + taskId + '"><div class="section-kicker">' + title + '</div><h2>' + (round === 1 ? '7' : '9') + '. ' + title + '</h2><div class="inline-actions"><button class="btn small" data-command="set_surface" data-surface="visual">Use Visual</button><button class="btn small soft" data-command="generate_visual">Generate Visual Aids</button><button class="btn small primary" data-task="' + taskId + '" data-stage="' + stageId + '">Show ' + title + ' card</button><button class="btn small" data-command="next">Next card</button></div><div class="moderator-note">Generate the comparison before opening the question card. Do not explain which result is better. Record a failed result without replacing it.</div><div class="spoken"><p>' + (round === 1 ? 'You will now receive comparative visual feedback related to your composition and ' + escapeHtml(termName) + '. Please look at the comparison and think aloud about what you notice.' : 'You will now receive comparative visual feedback about your revised composition. Please look at it and think aloud.') + '</p><p>What differences do you notice?</p><p>What do those differences suggest to you about ' + escapeHtml(termName) + '?</p><p>What, if anything, does this make you consider changing?</p>' + secondQuestion + '<p>How helpful was it for understanding ' + escapeHtml(termName) + '?</p><p>How helpful was it for deciding what to do next?</p><p>How much did you trust the feedback?</p><p>You may now revise your composition' + (round === 2 ? ' again' : '') + '. Please continue thinking aloud.</p></div></section>';
+        }
+
+        function taskScript(taskId, number, termId, firstType) {
+            const term = TERMS[termId] || TERMS.visual_balance;
+            const secondType = firstType === 'text' ? 'visual' : 'text';
+            const taskLabel = 'Task ' + number;
+            return '<section class="script-section" data-script-stage="pre_task" data-script-task="' + taskId + '"><div class="section-kicker">' + taskLabel + ' · ' + escapeHtml(term.name) + '</div><h2>3–5. Pre-task, Definition, and Initial Composition</h2>' + actionBar(taskId, 'pre_task', 'Show Start task card') + '<div class="moderator-note">Start task is one continuous sequence. Use Next through Pre-task and Definition. Click Done on Initial Composition before the participant edits.</div><div class="spoken"><h3>Pre-task</h3><p>Before I explain the term: In your own words, what does “' + escapeHtml(term.name) + '” mean in graphic design, and what visual decisions might a designer make to create it?</p><p>How confident are you in your current understanding of ' + escapeHtml(term.name) + ', from 1 to 7?</p><h3>' + escapeHtml(term.name) + ' Definition</h3><p class="definition">' + escapeHtml(term.definition) + '</p><h3>Initial Composition</h3><p>Using the provided visual elements, please create a composition that demonstrates ' + escapeHtml(term.name) + '.</p><p>You may move, resize, rotate, recolor, duplicate, or delete elements.</p><p>You do not need to create a realistic poster or communicate a specific message. Focus on the visual relationships among the elements.</p><p>Please think aloud while you work. You may begin.</p></div></section>' +
+            '<section class="script-section" data-script-stage="before_feedback" data-script-task="' + taskId + '"><div class="section-kicker">' + taskLabel + '</div><h2>6. Before Feedback</h2>' + actionBar(taskId, 'before_feedback', 'Show Before feedback card') + '<div class="spoken"><p>What do you think currently works well for ' + escapeHtml(term.name) + '?</p><p>What, if anything, would you consider changing next?</p><p>How clear are you about what to change next, from 1 to 7?</p><p>How confident are you that your current composition demonstrates ' + escapeHtml(term.name) + ', from 1 to 7?</p><p>Is there anything you currently feel uncertain or stuck about?</p></div></section>' +
+            feedbackScript(taskId, 1, firstType, term.name) +
+            '<section class="script-section" data-script-stage="after_revision_1" data-script-task="' + taskId + '"><div class="section-kicker">' + taskLabel + '</div><h2>8. After Revision 1</h2>' + actionBar(taskId, 'after_revision_1', 'Show After revision 1 card') + '<div class="spoken"><p>What did you change, and why?</p><p>How confident are you that your composition now demonstrates ' + escapeHtml(term.name) + ', from 1 to 7?</p></div></section>' +
+            feedbackScript(taskId, 2, secondType, term.name) +
+            '<section class="script-section" data-script-stage="after_revision_2" data-script-task="' + taskId + '"><div class="section-kicker">' + taskLabel + '</div><h2>10. After Revision 2</h2>' + actionBar(taskId, 'after_revision_2', 'Show After revision 2 card') + '<div class="spoken"><p>What was the most important change you made?</p><p>How did that change affect ' + escapeHtml(term.name) + '?</p></div></section>' +
+            '<section class="script-section" data-script-stage="post_task" data-script-task="' + taskId + '"><div class="section-kicker">' + taskLabel + '</div><h2>11–12. Post-task and Compare the Feedback</h2>' + actionBar(taskId, 'post_task', 'Show Post-task card') + '<div class="moderator-note">Post-task continues directly into Compare the Feedback. For Task 1, Done after the final comparison question automatically advances the main interface to Task 2.</div><div class="spoken"><h3>Post-task</h3><p>Now, in your own words, what does ' + escapeHtml(term.name) + ' mean?</p><p>Please point to one part of your final composition and explain how it demonstrates ' + escapeHtml(term.name) + '.</p><p>If you were creating another composition for ' + escapeHtml(term.name) + ', what would you pay attention to?</p><p>How confident are you in your understanding of ' + escapeHtml(term.name) + ' now, from 1 to 7?</p><h3>Compare the Feedback</h3><p>How were the written feedback and the visual feedback different for you?</p><p>Did one help you understand ' + escapeHtml(term.name) + ' better? Why?</p><p>Did one make it easier to decide what to change? Why?</p><p>Did either type of feedback show you something the other did not?</p><p>Did either one feel more inspiring or more restrictive?</p><p>Do you think the order in which you saw the two kinds of feedback affected your experience?</p><p>Was there a moment when your understanding of ' + escapeHtml(term.name) + ' changed or became more concrete? What caused that?</p></div></section>';
+        }
+
+        function renderGeneratedScript() {
+            if (!studyState) return;
+            const signature = JSON.stringify([studyState.taskTerms, studyState.feedback1Type, studyState.feedback2Type]);
+            if (signature === scriptSignature) return;
+            scriptSignature = signature;
+            const task1First = studyState.task1FeedbackOrder === 'visual_text' ? 'visual' : 'text';
+            const task2First = task1First === 'text' ? 'visual' : 'text';
+            document.getElementById('task1Script').innerHTML = taskScript('task_1', 1, studyState.taskTerms.task_1, task1First);
+            document.getElementById('task2Script').innerHTML = '<section class="script-section"><div class="section-kicker">Transition</div><h2>TASK 2 · ' + escapeHtml(TERMS[studyState.taskTerms.task_2].name) + '</h2><p>We will now repeat the same process with a different design term.</p></section>' + taskScript('task_2', 2, studyState.taskTerms.task_2, task2First);
+            document.querySelectorAll('[data-transfer-term]').forEach(function (element) { element.textContent = TERMS[studyState.taskTerms.transfer].name; });
+            renderFeedbackOptions();
+        }
+
+        function fillTermSelect(select, selected) {
+            select.innerHTML = Object.entries(TERMS).map(function (entry) { return '<option value="' + entry[0] + '">' + entry[1].name + '</option>'; }).join('');
+            select.value = selected;
+        }
+
+        function updateTransferOptions() {
+            const task1 = document.getElementById('task1Term').value;
+            const task2 = document.getElementById('task2Term').value;
+            const transfer = document.getElementById('transferTerm');
+            const previous = transfer.value;
+            transfer.innerHTML = [task1, task2].filter(function (value, index, values) { return values.indexOf(value) === index; }).map(function (id) { return '<option value="' + id + '">' + TERMS[id].name + '</option>'; }).join('');
+            transfer.value = [task1, task2].includes(previous) ? previous : task1;
+        }
+
+        function syncConfig() {
+            if (!studyState || configDirty) return;
+            fillTermSelect(document.getElementById('task1Term'), studyState.taskTerms.task_1);
+            fillTermSelect(document.getElementById('task2Term'), studyState.taskTerms.task_2);
+            updateTransferOptions();
+            document.getElementById('transferTerm').value = studyState.taskTerms.transfer;
+            document.getElementById('task1Order').value = studyState.task1FeedbackOrder || 'text_visual';
+        }
+
+        function renderFeedbackOptions() {
+            if (!studyState) return;
+            const selectedCode = studyState.selectedFeedback ? studyState.selectedFeedback.code : '';
+            const html = studyState.feedbackBank.map(function (item) { return '<button class="feedback-option' + (item.code === selectedCode ? ' selected' : '') + '" data-feedback-code="' + item.code + '" title="' + escapeHtml(item.useWhen) + '"><strong>' + item.code + '</strong><br>' + escapeHtml(item.title) + '</button>'; }).join('');
+            document.getElementById('feedbackOptions').innerHTML = html;
+            document.querySelectorAll('[data-inline-feedback]').forEach(function (container) {
+                const active = studyState.itemType === 'feedback_bank' && container.dataset.inlineFeedback === studyState.stageId;
+                container.innerHTML = active ? '<div class="feedback-options">' + html + '</div>' : '';
+            });
+        }
+
+        function renderState() {
+            const connected = Boolean(studyState && studyState.studyMode);
+            const connection = document.getElementById('connectionState');
+            connection.classList.toggle('connected', connected);
+            connection.textContent = connected ? 'Connected to participant window' : 'Study mode is required';
+            document.querySelectorAll('button, select').forEach(function (element) { element.disabled = !connected; });
+            if (!connected) return;
+            document.getElementById('currentState').textContent = studyState.taskLabel + ' · ' + studyState.termName;
+            document.getElementById('feedback1Control').textContent = 'Feedback 1: ' + (studyState.feedback1Type === 'text' ? 'Text' : 'Visual');
+            document.getElementById('feedback2Control').textContent = 'Feedback 2: ' + (studyState.feedback2Type === 'text' ? 'Text' : 'Visual');
+            document.querySelectorAll('[data-command="set_surface"]').forEach(function (button) { button.classList.toggle('active', button.dataset.surface === (studyState.mode === 'canvas' ? 'text' : (studyState.mode === 'visual_aids' ? 'visual' : ''))); });
+            document.getElementById('visualStatus').textContent = studyState.generatingVisualAids ? 'Generating…' : (studyState.visualAidsReady ? 'Visual aids ready' : '');
+            document.getElementById('cardBack').disabled = !studyState.cardOpen || studyState.backDisabled;
+            document.getElementById('cardNext').disabled = !studyState.cardOpen || studyState.nextDisabled;
+            document.getElementById('cardNext').textContent = studyState.nextLabel || 'Next';
+            document.getElementById('cardProgress').textContent = studyState.cardOpen ? studyState.progress : '';
+            document.getElementById('cardState').innerHTML = studyState.cardOpen ? '<strong>' + escapeHtml(studyState.stageTitle) + '</strong>' + escapeHtml(studyState.itemText || (studyState.itemType === 'feedback_bank' ? 'Choose standardized text feedback.' : '')) : '<strong>No card is open.</strong>Use an inline Show card button or a Task control above.';
+            const ratingPanel = document.getElementById('ratingPanel');
+            ratingPanel.classList.toggle('show', studyState.cardOpen && studyState.itemType === 'rating');
+            const feedbackPanel = document.getElementById('feedbackPanel');
+            feedbackPanel.classList.toggle('show', studyState.cardOpen && studyState.itemType === 'feedback_bank');
+            document.querySelectorAll('.script-section').forEach(function (section) { section.classList.toggle('current', studyState.cardOpen && section.dataset.scriptStage === studyState.stageId && (!section.dataset.scriptTask || section.dataset.scriptTask === studyState.activeTask)); });
+            syncConfig();
+            renderGeneratedScript();
+            renderFeedbackOptions();
+        }
+
+        document.getElementById('ratingButtons').innerHTML = Array.from({ length: 7 }, function (_, index) { return '<button class="btn small" data-rating="' + (index + 1) + '">' + (index + 1) + '</button>'; }).join('');
+        document.getElementById('task1Term').addEventListener('change', function () { configDirty = true; updateTransferOptions(); });
+        document.getElementById('task2Term').addEventListener('change', function () { configDirty = true; updateTransferOptions(); });
+        document.getElementById('task1Order').addEventListener('change', function () { configDirty = true; });
+        document.getElementById('transferTerm').addEventListener('change', function () { configDirty = true; });
+        document.getElementById('applyConfig').addEventListener('click', function () {
+            const task1Term = document.getElementById('task1Term').value;
+            const task2Term = document.getElementById('task2Term').value;
+            if (task1Term === task2Term) {
+                document.getElementById('configNote').textContent = 'Task 1 and Task 2 must use different terms.';
+                return;
+            }
+            configDirty = false;
+            document.getElementById('configNote').textContent = 'Protocol applied. Task 2 uses the opposite feedback order.';
+            send('configure_protocol', { task1Term: task1Term, task2Term: task2Term, transferTerm: document.getElementById('transferTerm').value, task1Order: document.getElementById('task1Order').value });
+        });
+
+        document.addEventListener('click', function (event) {
+            const feedback = event.target.closest('[data-feedback-code]');
+            if (feedback) { send('select_feedback', { code: feedback.dataset.feedbackCode }); return; }
+            const rating = event.target.closest('[data-rating]');
+            if (rating) { send('select_rating', { score: Number(rating.dataset.rating) }); return; }
+            const button = event.target.closest('button');
+            if (!button || button.disabled || button.id === 'applyConfig') return;
+            if (button.dataset.stage) send('open_stage', { stageId: button.dataset.stage, taskId: button.dataset.task || null });
+            else if (button.dataset.task) send('set_task', { taskId: button.dataset.task });
+            else if (button.dataset.command) send(button.dataset.command, button.dataset.surface ? { surface: button.dataset.surface } : {});
+        });
+
+        window.addEventListener('message', function (event) {
+            if (event.source !== window.opener || !event.data || event.data.type !== 'ekphrasis_researcher_state') return;
+            studyState = event.data.state;
+            studyState.task1FeedbackOrder = studyState.task1FeedbackOrder || (studyState.feedback1Type === 'visual' && studyState.activeTask === 'task_1' ? 'visual_text' : 'text_visual');
+            renderState();
+        });
+        if (researcherChannel) {
+            researcherChannel.addEventListener('message', function (event) {
+                if (!event.data || event.data.type !== 'ekphrasis_researcher_state') return;
+                studyState = event.data.state;
+                renderState();
+            });
+        }
+        window.addEventListener('beforeunload', function () { studyState = null; });
+        send('ready');
+    </script>
+</body>
+</html>

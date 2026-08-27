@@ -23,19 +23,20 @@ Important current-interface notes:
 - `Start task` contains Pre-task, Definition, and Initial Composition in one continuous card sequence.
 - `Post-task` contains Post-task and Compare the Feedback in one continuous card sequence.
 - Completing Task 1 through `Post-task` automatically advances the interface to Task 2 and reverses the feedback order.
-- The current interface starts Task 1 with Text → Visual and Task 2 with Visual → Text. There is currently no interface control for changing Task 1 to Visual → Text.
-- Introduction, Interface Practice, Transfer Task, Final Interview, and Closing have no console buttons. Conduct them verbally.
-- The Transfer Task confidence rating is not recorded by the current interface. Record it separately if it is required in the dataset.
+- The Researcher Window can configure both task terms, the Task 1 feedback order, and the transfer term. Task 2 automatically uses the opposite feedback order.
+- Introduction, Interface Practice, Transfer Task, Final Interview, and Closing are available from the interactive script in the Researcher Window even though they are not shown in the participant window’s compact console.
+- The Researcher Window can open the Transfer Task card and record its confidence rating.
 
 ## Before the participant joins
 
 **[MODERATOR ACTION]**
 
 1. Select `Study` in the study mode menu.
-2. Enter the participant ID in `User`.
-3. Confirm that Task 1 uses the assigned term in `Practice vocabulary`.
-4. Click `Text` so the participant begins on the Canvas interface without visual feedback.
-5. Prepare the first material set.
+2. Click `Researcher` to open the Researcher Window.
+3. Configure the Task 1 term, Task 2 term, Task 1 feedback order, and transfer term, then click `Apply protocol`.
+4. Enter the participant ID in `User`.
+5. Click `Text` so the participant begins on the Canvas interface without visual feedback.
+6. Prepare the first material set.
 
 ## 1. Introduction
 
@@ -358,13 +359,13 @@ Repeat Sections 3–12. Use the labels shown on `Feedback 1` and `Feedback 2`; T
 
 ## 13. Transfer Task
 
-**[MODERATOR ACTION: No study-console button.]**
+**[MODERATOR ACTION: Use the Transfer Task section in the Researcher Window.]**
 
 1. Click `Text` to use the Canvas interface without feedback.
 2. Select the learned transfer term in `Practice vocabulary`.
 3. Clear the canvas and load the new transfer materials.
-4. Conduct this section verbally. Do not click either feedback button and do not generate visual aids.
-5. Record the final `1–7` confidence response separately. The current interface does not provide a Transfer rating card.
+4. Click `Show Transfer card`. Do not click either feedback button and do not generate visual aids.
+5. Record the final `1–7` confidence response through the Researcher Window rating controls or the participant card.
 
 You will now complete one final short composition using a new set of visual elements.
 

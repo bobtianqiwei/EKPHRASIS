@@ -532,5 +532,10 @@ def logo():
     """Serve topbar logo."""
     return send_from_directory(INTERFACE_DIR, 'logo.png')
 
+@app.route('/researcher-window.html')
+def researcher_window():
+    """Serve the interactive researcher window."""
+    return send_from_directory(INTERFACE_DIR, 'researcher-window.html')
+
 if __name__ == '__main__':
     app.run(debug=False, use_reloader=False, threaded=True, port=5001)
