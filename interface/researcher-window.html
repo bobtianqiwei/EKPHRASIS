@@ -43,16 +43,25 @@
             margin-bottom: 18px;
             box-shadow: 0 8px 26px rgba(0,0,0,0.1);
         }
-        .console-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+        .console-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .console-head-actions { display: flex; align-items: center; gap: 8px; }
         .connection { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #777; }
         .connection::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #d45a4d; }
         .connection.connected::before { background: #39a568; }
         .current-state { font-size: 13px; font-weight: 700; }
         .control-row { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
         .control-row + .control-row { margin-top: 5px; }
+        .control-row .btn { flex: 0 0 auto; white-space: nowrap; }
         .control-label { flex: 0 0 auto; width: 48px; color: #888; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-        .card-state { height: 58px; margin-top: 8px; padding: 9px 10px; overflow-y: auto; overscroll-behavior: contain; border-radius: 9px; background: #f6f6f3; font-size: 12px; line-height: 1.4; }
+        .extra-controls { display: none; margin-top: 9px; }
+        .extra-controls.show { display: block; }
+        #stageControls { align-items: flex-start; overflow-x: visible; }
+        .stage-buttons { display: flex; flex: 1 1 0; min-width: 0; flex-wrap: wrap; gap: 6px; }
+        .card-preview-row { display: flex; align-items: stretch; gap: 8px; margin-top: 8px; }
+        .card-state { flex: 1 1 auto; min-width: 0; height: 58px; padding: 9px 10px; overflow-y: auto; overscroll-behavior: contain; border-radius: 9px; background: #f6f6f3; font-size: 12px; line-height: 1.4; }
         .card-state strong { display: block; margin-bottom: 2px; }
+        .card-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+        .card-progress { height: 16px; margin-top: 4px; overflow: hidden; }
         .rating-panel, .feedback-panel { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e7e7e2; }
         .rating-panel.show, .feedback-panel.show { display: block; }
         .rating-buttons { display: flex; gap: 5px; margin-top: 6px; }
@@ -102,33 +111,41 @@
         <section class="console" aria-label="Research controls">
             <div class="console-head">
                 <span class="connection" id="connectionState">Waiting for participant window</span>
-                <span class="current-state" id="currentState">No study state</span>
+                <div class="console-head-actions">
+                    <span class="current-state" id="currentState">No study state</span>
+                    <button type="button" class="btn small" id="controlsToggle" aria-controls="extraControls" aria-expanded="false">Show Controls</button>
+                </div>
             </div>
-            <div class="control-row">
-                <span class="control-label">Context</span>
-                <button class="btn small" data-command="set_surface" data-surface="text">Text</button>
-                <button class="btn small" data-command="set_surface" data-surface="visual">Visual</button>
-                <button class="btn small soft" data-command="generate_visual">Generate Visual Aids</button>
-                <span class="note" id="visualStatus"></span>
+            <div class="extra-controls" id="extraControls">
+                <div class="control-row">
+                    <span class="control-label">Context</span>
+                    <button class="btn small" data-command="set_surface" data-surface="text">Text</button>
+                    <button class="btn small" data-command="set_surface" data-surface="visual">Visual</button>
+                    <button class="btn small soft" data-command="generate_visual">Generate Visual Aids</button>
+                    <span class="note" id="visualStatus"></span>
+                </div>
+                <div class="control-row" id="stageControls">
+                    <span class="control-label">Task</span>
+                    <div class="stage-buttons">
+                        <button class="btn small" data-stage="pre_task">Start task</button>
+                        <button class="btn small" data-stage="before_feedback">Before feedback</button>
+                        <button class="btn small" data-stage="feedback_1" id="feedback1Control">Feedback 1</button>
+                        <button class="btn small" data-stage="after_revision_1">After revision 1</button>
+                        <button class="btn small" data-stage="feedback_2" id="feedback2Control">Feedback 2</button>
+                        <button class="btn small" data-stage="after_revision_2">After revision 2</button>
+                        <button class="btn small" data-stage="post_task">Post-task</button>
+                    </div>
+                </div>
             </div>
-            <div class="control-row" id="stageControls">
-                <span class="control-label">Task</span>
-                <button class="btn small" data-stage="pre_task">Start task</button>
-                <button class="btn small" data-stage="before_feedback">Before feedback</button>
-                <button class="btn small" data-stage="feedback_1" id="feedback1Control">Feedback 1</button>
-                <button class="btn small" data-stage="after_revision_1">After revision 1</button>
-                <button class="btn small" data-stage="feedback_2" id="feedback2Control">Feedback 2</button>
-                <button class="btn small" data-stage="after_revision_2">After revision 2</button>
-                <button class="btn small" data-stage="post_task">Post-task</button>
+            <div class="card-preview-row">
+                <div class="card-state" id="cardState"><strong>No card is open.</strong>Use an inline Show card button.</div>
+                <div class="card-actions">
+                    <button class="btn small" data-command="back" id="cardBack">Back</button>
+                    <button class="btn small primary" data-command="next" id="cardNext">Next</button>
+                    <button class="btn small" data-command="close" id="cardClose">Close</button>
+                </div>
             </div>
-            <div class="control-row">
-                <span class="control-label">Card</span>
-                <button class="btn small" data-command="back" id="cardBack">Back</button>
-                <button class="btn small primary" data-command="next" id="cardNext">Next</button>
-                <button class="btn small" data-command="close">Close</button>
-                <span class="note" id="cardProgress"></span>
-            </div>
-            <div class="card-state" id="cardState"><strong>No card is open.</strong>Use an inline Show card button or a Task control above.</div>
+            <div class="note card-progress" id="cardProgress"></div>
             <div class="rating-panel" id="ratingPanel">
                 <strong>Record participant rating</strong>
                 <div class="rating-buttons" id="ratingButtons"></div>
@@ -180,6 +197,7 @@
         let studyState = null;
         let configDirty = false;
         let scriptSignature = '';
+        let controlsExpanded = false;
         const researcherChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('ekphrasis-study-researcher') : null;
 
         function send(command, payload) {
@@ -273,25 +291,29 @@
             const connection = document.getElementById('connectionState');
             connection.classList.toggle('connected', connected);
             connection.textContent = connected ? 'Connected to participant window' : 'Study mode is required';
+            if (connected) {
+                syncConfig();
+                renderGeneratedScript();
+            }
             document.querySelectorAll('button, select').forEach(function (element) { element.disabled = !connected; });
+            document.getElementById('controlsToggle').disabled = false;
             if (!connected) return;
             document.getElementById('currentState').textContent = studyState.taskLabel + ' · ' + studyState.termName;
             document.getElementById('feedback1Control').textContent = 'Feedback 1: ' + (studyState.feedback1Type === 'text' ? 'Text' : 'Visual');
             document.getElementById('feedback2Control').textContent = 'Feedback 2: ' + (studyState.feedback2Type === 'text' ? 'Text' : 'Visual');
             document.querySelectorAll('[data-command="set_surface"]').forEach(function (button) { button.classList.toggle('active', button.dataset.surface === (studyState.mode === 'canvas' ? 'text' : (studyState.mode === 'visual_aids' ? 'visual' : ''))); });
             document.getElementById('visualStatus').textContent = studyState.generatingVisualAids ? 'Generating…' : (studyState.visualAidsReady ? 'Visual aids ready' : '');
-            document.getElementById('cardBack').disabled = !studyState.cardOpen || studyState.backDisabled;
-            document.getElementById('cardNext').disabled = !studyState.cardOpen || studyState.nextDisabled;
+            document.querySelectorAll('[data-command="back"]').forEach(function (button) { button.disabled = !studyState.cardOpen || studyState.backDisabled; });
+            document.querySelectorAll('[data-command="next"]').forEach(function (button) { button.disabled = !studyState.cardOpen || studyState.nextDisabled; });
+            document.querySelectorAll('[data-command="close"]').forEach(function (button) { button.disabled = !studyState.cardOpen; });
             document.getElementById('cardNext').textContent = studyState.nextLabel || 'Next';
             document.getElementById('cardProgress').textContent = studyState.cardOpen ? studyState.progress : '';
-            document.getElementById('cardState').innerHTML = studyState.cardOpen ? '<strong>' + escapeHtml(studyState.stageTitle) + '</strong>' + escapeHtml(studyState.itemText || (studyState.itemType === 'feedback_bank' ? 'Choose standardized text feedback.' : '')) : '<strong>No card is open.</strong>Use an inline Show card button or a Task control above.';
+            document.getElementById('cardState').innerHTML = studyState.cardOpen ? '<strong>' + escapeHtml(studyState.stageTitle) + '</strong>' + escapeHtml(studyState.itemText || (studyState.itemType === 'feedback_bank' ? 'Choose standardized text feedback.' : '')) : '<strong>No card is open.</strong>Use an inline Show card button.';
             const ratingPanel = document.getElementById('ratingPanel');
             ratingPanel.classList.toggle('show', studyState.cardOpen && studyState.itemType === 'rating');
             const feedbackPanel = document.getElementById('feedbackPanel');
             feedbackPanel.classList.toggle('show', studyState.cardOpen && studyState.itemType === 'feedback_bank');
             document.querySelectorAll('.script-section').forEach(function (section) { section.classList.toggle('current', studyState.cardOpen && section.dataset.scriptStage === studyState.stageId && (!section.dataset.scriptTask || section.dataset.scriptTask === studyState.activeTask)); });
-            syncConfig();
-            renderGeneratedScript();
             renderFeedbackOptions();
         }
 
@@ -300,6 +322,12 @@
         document.getElementById('task2Term').addEventListener('change', function () { configDirty = true; updateTransferOptions(); });
         document.getElementById('task1Order').addEventListener('change', function () { configDirty = true; });
         document.getElementById('transferTerm').addEventListener('change', function () { configDirty = true; });
+        document.getElementById('controlsToggle').addEventListener('click', function () {
+            controlsExpanded = !controlsExpanded;
+            document.getElementById('extraControls').classList.toggle('show', controlsExpanded);
+            this.textContent = controlsExpanded ? 'Hide Controls' : 'Show Controls';
+            this.setAttribute('aria-expanded', String(controlsExpanded));
+        });
         document.getElementById('applyConfig').addEventListener('click', function () {
             const task1Term = document.getElementById('task1Term').value;
             const task2Term = document.getElementById('task2Term').value;
@@ -338,6 +366,7 @@
             });
         }
         window.addEventListener('beforeunload', function () { studyState = null; });
+        renderState();
         send('ready');
     </script>
 </body>

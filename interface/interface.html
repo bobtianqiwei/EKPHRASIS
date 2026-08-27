@@ -1535,6 +1535,7 @@
             </div>
             <div class="topbar-right" style="position: relative;">
                 <a class="researcher-window-btn" id="researcherWindowBtn" href="researcher-window.html" target="ekphrasisResearcherWindow" title="Show Researcher Window">Researcher</a>
+                <button type="button" class="researcher-window-btn" id="studyControlsToggleBtn" aria-pressed="false">Dock</button>
                 <select id="studyModeSelect" class="study-mode-select" title="Demo: no logging. Study: record to dataset/study/">
                     <option value="demo" selected>Demo</option>
                     <option value="study">Study</option>
@@ -1762,15 +1763,23 @@ if (chessReachedThresholdPctEl) {
 const studyModeSelect = document.getElementById('studyModeSelect');
 const studyUserWrap = document.getElementById('studyUserWrap');
 const researcherWindowBtn = document.getElementById('researcherWindowBtn');
+const studyControlsToggleBtn = document.getElementById('studyControlsToggleBtn');
 let researcherWindow = null;
+let studyResearchControlsVisible = false;
 const researcherChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('ekphrasis-study-researcher') : null;
 const researcherCommandIds = new Set();
 
 function updateStudyUI() {
     const isStudy = studyModeSelect && studyModeSelect.value === 'study';
     const mode = modeSelect ? modeSelect.value : '';
+    if (!isStudy) studyResearchControlsVisible = false;
     if (studyUserWrap) studyUserWrap.classList.toggle('show', isStudy);
     if (researcherWindowBtn) researcherWindowBtn.classList.toggle('show', isStudy);
+    if (studyControlsToggleBtn) {
+        studyControlsToggleBtn.classList.toggle('show', isStudy);
+        studyControlsToggleBtn.textContent = 'Dock';
+        studyControlsToggleBtn.setAttribute('aria-pressed', String(studyResearchControlsVisible));
+    }
     if (!isStudy && researcherWindow && !researcherWindow.closed) {
         researcherWindow.close();
         researcherWindow = null;
@@ -2598,7 +2607,8 @@ function updateStudyOrderLabels() {
 function updateStudyResearchControls() {
     const controls = document.getElementById('studyResearchControls');
     if (!controls || !modeSelect) return;
-    const show = isStudyMode() && ['canvas', 'visual_aids', 'chess'].includes(modeSelect.value);
+    const eligible = isStudyMode() && ['canvas', 'visual_aids', 'chess'].includes(modeSelect.value);
+    const show = eligible && studyResearchControlsVisible;
     controls.classList.toggle('show', show);
     if (containerEl) containerEl.classList.toggle('study-research-active', show);
     document.querySelectorAll('.study-context-btn').forEach(function (button) {
@@ -2606,7 +2616,7 @@ function updateStudyResearchControls() {
         button.classList.toggle('active', button.dataset.studySurface === activeSurface);
     });
     updateStudyOrderLabels();
-    if (!show) closeStudyCard('study_controls_hidden');
+    if (!eligible) closeStudyCard('study_controls_hidden');
     setTimeout(fitInViewport, 0);
 }
 
@@ -3108,6 +3118,14 @@ document.querySelectorAll('.study-context-btn').forEach(function (button) {
     button.addEventListener('click', function () { setStudyFeedbackSurface(button.dataset.studySurface); });
 });
 if (researcherWindowBtn) researcherWindowBtn.addEventListener('click', openResearcherWindow);
+if (studyControlsToggleBtn) {
+    studyControlsToggleBtn.addEventListener('click', function () {
+        studyResearchControlsVisible = !studyResearchControlsVisible;
+        studyControlsToggleBtn.textContent = 'Dock';
+        studyControlsToggleBtn.setAttribute('aria-pressed', String(studyResearchControlsVisible));
+        updateStudyResearchControls();
+    });
+}
 window.addEventListener('message', function (event) {
     const allowedOrigin = window.location.origin === 'null' || event.origin === window.location.origin;
     if (!allowedOrigin) return;
