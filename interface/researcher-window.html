@@ -23,7 +23,7 @@
         .subtitle, .note { color: #6d6d68; font-size: 13px; line-height: 1.45; }
         .config-grid { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; margin-top: 16px; }
         .config-grid label { display: grid; gap: 5px; color: #666; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-        select, .btn {
+        input, select, .btn {
             min-height: 32px;
             padding: 6px 9px;
             border: 1px solid #ccc;
@@ -31,6 +31,10 @@
             background: #fff;
             color: #222;
         }
+        .username-control { display: flex; align-items: center; gap: 5px; }
+        .username-control label { color: #888; font-size: 10px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+        .username-control input { width: 68px; min-width: 0; min-height: 28px; padding: 4px 8px; }
+        .username-control .btn { flex: 0 0 28px; width: 28px; min-height: 28px; padding: 0; font-size: 17px; line-height: 1; }
         .apply-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
         .btn.primary, .btn.active { border-color: #111; background: #111; color: #fff; }
         .btn.soft { background: #f4f4f2; }
@@ -112,6 +116,7 @@
             <div class="console-head">
                 <span class="connection" id="connectionState">Waiting for participant window</span>
                 <div class="console-head-actions">
+                    <div class="username-control"><label for="researcherUsername">User name</label><input type="text" id="researcherUsername" maxlength="80" autocomplete="off"><button type="button" class="btn" id="newUsername" aria-label="Add new user">+</button></div>
                     <span class="current-state" id="currentState">No study state</span>
                     <button type="button" class="btn small" id="controlsToggle" aria-controls="extraControls" aria-expanded="false">Show Controls</button>
                 </div>
@@ -275,6 +280,12 @@
             document.getElementById('task1Order').value = studyState.task1FeedbackOrder || 'text_visual';
         }
 
+        function syncUsername() {
+            const input = document.getElementById('researcherUsername');
+            if (!studyState || document.activeElement === input) return;
+            input.value = studyState.username || '';
+        }
+
         function renderFeedbackOptions() {
             if (!studyState) return;
             const selectedCode = studyState.selectedFeedback ? studyState.selectedFeedback.code : '';
@@ -292,6 +303,7 @@
             connection.classList.toggle('connected', connected);
             connection.textContent = connected ? 'Connected to participant window' : 'Study mode is required';
             if (connected) {
+                syncUsername();
                 syncConfig();
                 renderGeneratedScript();
             }
@@ -322,6 +334,15 @@
         document.getElementById('task2Term').addEventListener('change', function () { configDirty = true; updateTransferOptions(); });
         document.getElementById('task1Order').addEventListener('change', function () { configDirty = true; });
         document.getElementById('transferTerm').addEventListener('change', function () { configDirty = true; });
+        document.getElementById('researcherUsername').addEventListener('change', function () {
+            send('set_username', { username: this.value.trim() });
+        });
+        document.getElementById('researcherUsername').addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter') return;
+            send('set_username', { username: this.value.trim() });
+            this.blur();
+        });
+        document.getElementById('newUsername').addEventListener('click', function () { send('new_username'); });
         document.getElementById('controlsToggle').addEventListener('click', function () {
             controlsExpanded = !controlsExpanded;
             document.getElementById('extraControls').classList.toggle('show', controlsExpanded);

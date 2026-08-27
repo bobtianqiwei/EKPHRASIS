@@ -1847,7 +1847,12 @@ function saveUsername() {
 if (studyModeSelect) studyModeSelect.addEventListener('change', saveStudyMode);
 if (modeSelect) modeSelect.addEventListener('change', saveAppMode);
 const studyUserInputEl = document.getElementById('studyUserInput');
-if (studyUserInputEl) studyUserInputEl.addEventListener('input', saveUsername);
+if (studyUserInputEl) {
+    studyUserInputEl.addEventListener('input', function () {
+        saveUsername();
+        postResearcherWindowState();
+    });
+}
 
 document.getElementById('statusModalResetBtn').addEventListener('click', function () {
     try {
@@ -3027,9 +3032,42 @@ function configureStudyProtocol(payload) {
     }, { stateSnapshot: true });
 }
 
+function setStudyUsernameFromResearcher(username) {
+    if (!studyUserInputEl) return;
+    const nextUsername = String(username || '').trim().slice(0, 80);
+    if (studyUserInputEl.value === nextUsername) {
+        postResearcherWindowState();
+        return;
+    }
+    studyUserInputEl.value = nextUsername;
+    saveUsername();
+    studyUserInputEl.dispatchEvent(new Event('change'));
+    postResearcherWindowState();
+}
+
+async function createNextStudyUsername() {
+    let users = [];
+    try {
+        const response = await fetch(API_BASE + '/study_users');
+        const result = await response.json();
+        if (response.ok && Array.isArray(result)) users = result;
+    } catch (_) {}
+    users.push(getStudyUsername());
+    const highestNumber = users.reduce(function (highest, username) {
+        const match = /^P(\d+)$/i.exec(String(username || '').trim());
+        return match ? Math.max(highest, Number(match[1])) : highest;
+    }, 0);
+    setStudyUsernameFromResearcher('P' + (highestNumber + 1));
+}
+
 function handleResearcherWindowCommand(command, payload) {
     if (!isStudyMode()) return;
-    if (command === 'configure_protocol') {
+    if (command === 'set_username') {
+        setStudyUsernameFromResearcher(payload.username);
+    } else if (command === 'new_username') {
+        createNextStudyUsername();
+        return;
+    } else if (command === 'configure_protocol') {
         configureStudyProtocol(payload);
     } else if (command === 'set_surface') {
         setStudyFeedbackSurface(payload.surface);
